@@ -1,0 +1,414 @@
+<?php
+
+/**
+ * ProcessWire
+ * Copyright (C) 2014-present by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://processwire.com
+ *
+ *
+ * DONE
+ * ----
+ * Write framework
+ * Add config options
+ * Add release/tagged diff/changelog/commit list to upgrade form
+ *
+ * WIP
+ * ---
+ *
+ *
+ * TODO
+ * ----
+ * Add release notes to module information page
+ * Add caching to help circumvent hitting hosting service API rate limits
+ * Add support for Gitlab hosted repositories via repo-host abstraction
+ * Add support for BitBucket hosted repositories via repo-host abstraction
+ * Move support for GitHub into repo-host abstraction
+ * Add public data-access API for other modules to use
+ *
+ *
+ * Known Issues
+ * ------------
+ *
+ */
+
+class ModuleReleaseNotes extends Process implements ConfigurableModule {
+
+    public static function getModuleInfo() {
+        return array(
+            'title'     => __('Module Release Notes'),
+            'summary'   => __("Discovers and shows what has changed with each module version."),
+            'version'   => '0.1.0',
+            'author'    => 'Stephen Dickinson (netcarver)',
+            'autoload'  => 'template=admin',
+            'singular'  => true,
+            'permanent' => false,
+            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.3.8',
+            'installs'  => 'TextformatterParsedownExtraPlugin',
+            'icon'      => 'code-fork'
+        );
+    }
+
+
+    /**
+     *
+     */
+    static public function getDefaultConfig() {
+        return array(
+            'fallbackCommitHistory' => 12,
+        );
+    }
+
+
+    /**
+     *
+     */
+    public function __construct() {
+        foreach(self::getDefaultConfig() as $key => $value) {
+            $this->$key = $value;
+        }
+    }
+
+
+    /**
+     * Prepares commit meta-data for display
+     */
+    public function formatCommitMetaData($commit, $info) {
+        $author    = $commit['commit']['author']['name'];
+        $committer = $commit['commit']['committer']['name'];
+        $date      = $commit['commit']['committer']['date'];
+        $sha       = substr($commit['sha'], 0, 8);
+        $diff_url  = $commit['html_url'];
+        $icon      = $info['repo_icon'];
+
+        $date  = str_replace('T', ' ', $date);
+        $sig   = "$icon &mdash; $date &mdash; <a href='$diff_url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author";
+
+        return $sig;
+    }
+
+
+
+
+    public function getReleaseNotes($info, &$http) {
+        // TODO add caching (stop us from hitting API request limits
+        // Look for release notes
+        $remote = $info['project_url'];
+        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
+        $url = "$api_remote/releases/tags/{$info['module_version']}";
+        $result = $http->getJSON($url);
+        $headers = $http->getResponseHeaders();
+        \TD::barDump($headers);
+        return $result;
+    }
+
+
+
+
+    public function getTaggedLog($info, &$http, &$tagged_log) {
+        // TODO add caching (stop us from hitting API request limits
+        $remote = $info['project_url'];
+        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
+        $url = "$api_remote/compare/{$info['module_version_current']}...{$info['module_version']}";
+        $tmp_result = $http->getJSON($url);
+        $headers = $http->getResponseHeaders();
+        \TD::barDump($headers);
+
+        $code = $http->getHttpCode();
+        if(200 == $code && !empty($tmp_result['commits'])) {
+            $history = array();
+            $commits = $tmp_result['commits'];
+            foreach ($commits as $commit) {
+                $message   = wordwrap($commit['commit']['message']);
+                $sig       = $this->formatCommitMetaData($commit, $info);
+                $entry     = "<li>$sig<br><pre>$message</pre></li>";
+                $history[] = $entry;
+            }
+            $history   = implode("", $history);
+            $diff_url  = $tmp_result['html_url'];
+            $diff_link = "(<a href='$diff_url' target='_diff'>View diff. {$info['remote_icon']}</i></a>)";
+            $tagged_log = "<ul>$history</ul><p><a href='$diff_url' target='_diff'>{$info['repo_icon']} View Entire Diff.</a></p>";
+        }
+    }
+
+
+
+
+    public function getChangelog($info, &$http, &$changelog) {
+        $remote = $info['project_url'];
+        $raw_remote = str_replace('https://github.com/', 'https://raw.githubusercontent.com/', $remote);
+        $url = "$raw_remote/master/CHANGELOG.md";
+        $result = $http->get($url);
+        $headers = $http->getResponseHeaders();
+        \TD::barDump($headers);
+        if(200 == $http->getHttpCode()) {
+            $changelog = $result;
+        }
+    }
+
+
+
+    public function remoteInfo($remote) {
+        if (false !== stripos($remote, '://github.com')) {
+            return array(
+                'host' => 'Github',
+                'link' => $remote,
+                'icon' => '<i class="fa fa-icon fa-github"></i>',
+            );
+        } else if (false !== stripos($remote, '://bitbucket.org')) {
+            return array(
+                'host' => 'BitBucket',
+                'link' => $remote,
+                'icon' => '<i class="fa fa-icon fa-bitbucket"></i>'
+            );
+        } else if (false !== stripos($remote, '://gitlab.com')) {
+            return array(
+                'host' => 'GitLab',
+                'link' => $remote,
+                'icon' => '<i class="fa fa-icon fa-gitlab"></i>'
+            );
+        }
+
+        // Use a generic git icon...
+        return array(
+            'host' => 'Unknown',
+            'link' => $remote,
+            'icon' => '<i class="fa fa-icon fa-git"></i>',
+        );
+    }
+
+
+
+    public function getLastCommits($info, &$http, &$latest_commits) {
+        $remote = $info['project_url'];
+        //
+        // Resort to listing the last X commits on the repo...
+        //
+        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
+        $url = "$api_remote/commits";
+        $result = $http->getJSON($url);
+        $headers = $http->getResponseHeaders();
+        \TD::barDump($headers);
+        $code = $http->getHttpCode();
+        if(200 == $code && !empty($result)) {
+            $history = array();
+            $commits = array_slice($result, 0, $this->data['fallbackCommitHistory']);
+            foreach ($commits as $commit) {
+                $message   = wordwrap($commit['commit']['message']);
+                $sig       = $this->formatCommitMetaData($commit, $info);
+                $entry     = "<li>$sig<br><pre>$message</pre></li>";
+                $history[] = $entry;
+            }
+            $history   = implode("", $history);
+            $latest_commits = "<ul>$history</ul>";
+        }
+    }
+
+
+    /**
+     *
+     */
+    public function ready() {
+        $this->addHookAfter("ProcessModule::buildDownloadConfirmForm", function($event) {
+            $info            = $event->arguments[0];
+            $module_class    = $info['class_name'];
+            $current_info    = $this->modules->getModuleInfo($module_class);
+            $current_version = $current_info['version'];
+            $new_version     = $info['module_version'];
+            $remote          = $info['project_url'];
+            $remote_info     = $this->remoteInfo($remote);
+            $repo_icon       = $remote_info['icon'];
+            $remote_icon     = '<i class="fa fa-icon fa-external-link"></i>';
+            $is_github_repo  = (false !== stripos($remote, '://github.com'));
+
+            // Push the current version into the $info
+            $info['version_current'] = $current_version;
+            if (is_int($current_version)) {
+                $current_version = $this->modules->formatVersion($current_version);
+            }
+            $info['module_version_current'] = $current_version;
+            $info['repo_icon']   = $repo_icon;
+            $info['remote_icon'] = $remote_icon;
+            ksort($info);
+
+            $changes         = $current_version != $new_version;
+            $parsedown       = $this->modules->get('TextformatterParsedownExtraPlugin');
+            if ($parsedown) {
+                $fmt_note = __('Markdown formatted text shown');
+            } else {
+                $fmt_note = __('Raw text shown');
+            }
+
+            $http = new WireHttp();
+            $http->setHeader('User-Agent', 'netcarver-pw-module-version-checker');
+            $http->setTimeout(2);
+
+            $return_info     = $event->return;
+            $children        = $return_info->children;
+
+            \TD::barDump($info);
+
+            $wrapper = $this->modules->get('InputfieldFieldset');
+            $wrapper->name  = 'changes-wrapper';
+            $wrapper->label = __("What's Changed?");
+
+            $release_notes  = $release_notes_default  = __('Not Available - Github Release Not Found');
+            $tagged_log     = $tagged_log_default     = __('Not Available - Git Tags Missing');
+            $changelog_file = $changelog_file_default = __('Not Available - File Missing');
+            $latest_commits = $latest_commits_default = __('Comming Soon!');
+
+            //
+            // Fetch release notes (if any)...
+            //
+            // TODO Only show release notes for Github repos. BB and GL repos don't support them.
+            //
+            $tmp_release_notes = $this->getReleaseNotes($info, $http);
+            $code = $http->getHttpCode();
+            if(200 == $code && !empty($tmp_release_notes['body'])) {
+                // TODO Handle non 200 return codes, or empty body!
+                // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
+                // user
+                $release_notes  = ($parsedown) ? $parsedown->parsedown($tmp_release_notes['body']) : "<pre>{$tmp_release_notes['body']}</pre>";
+                $release_link  = "$remote/releases/tag/$new_version";
+            }
+            $has_release_notes = $release_notes != $release_notes_default;
+
+            //
+            // Fetch tagged log (if any)...
+            //
+            if ($changes) {
+                $this->getTaggedLog($info, $http, $tagged_log);
+            }
+            $has_tagged_log = $tagged_log != $tagged_log_default;
+
+            //
+            // Fetch changelog file (if any)...
+            //
+            $this->getChangelog($info, $http, $changelog_file);
+            $has_changelog_file = $changelog_file != $changelog_file_default;
+
+
+            $field = $this->modules->get('InputfieldMarkup');
+            $field->name = 'release-notes';
+            if ($has_release_notes) {
+                $field->label  = __("Official Release Notes for $new_version.");
+                $release_notes = "<style>.modrnotes li {margin:0}</style><div style='max-height: 30em; overflow-y: overlay; overflow-x:overlay'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
+                $field->notes  = $fmt_note;
+            } else {
+                $field->label = __("No Official Release Notes for $new_version.");
+                $field->notes = __('To add official release notes, please start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. You will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) your code as you push new versions in order to use this feature.');
+                if ($has_changelog_file || $has_tagged_log) {
+                    $field->collapsed = Inputfield::collapsedYes;
+                }
+            }
+            $field->value = $release_notes;
+            $wrapper->add($field);
+
+            if ($changes) {
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'tagged-log';
+                if ($has_tagged_log) {
+                    $field->label = __("Detailed Commit History - from $current_version to $new_version");
+                } else {
+                    $field->label = __("No Detailed Commit History Available");
+                    $field->notes = __('Even if you don\'t use Github Releases, you can start to show code changes between versions if you start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments your module version. Your tags **must** match your version numbering scheme for this feature to work - don\'t tag "v1.0.1" if your version in PW is ```101``` or ```"1.0.1"```.');
+                    if ($has_changelog_file) {
+                        $field->collapsed = Inputfield::collapsedYes;
+                    }
+                }
+                if ($has_release_notes) {
+                    $field->collapsed = Inputfield::collapsedYes;
+                }
+                $field->value = "<div style='max-height: 30em; overflow-y: overlay; overflow-x:overlay'>$tagged_log</div>";
+                $wrapper->add($field);
+            }
+
+            if (!$has_release_notes || $has_changelog_file) {
+                // If there are no release notes, or there is a changelog file, we show this field.
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'changelog';
+                if ($has_changelog_file) {
+                    $field->label         = __("Changelog from version $new_version");
+                    $changelog_file = ($parsedown) ? $parsedown->parsedown($changelog_file) : "<pre>$changelog_file</pre>";
+                    $field->notes   = $fmt_note;
+                    $changelog_file = "<style>.modrnotes li {margin:0}</style><div class='modrnotes' style='max-height: 30em; overflow-y: overlay;overflow-x:overlay'>$changelog_file</div>";
+                } else {
+                    $field->label = __("No Changelog from version $new_version");
+                    $field->notes = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
+                }
+                if ($has_release_notes) {
+                    $field->collapsed = Inputfield::collapsedYes;
+                    $field->notes .= __('You are already using the Releases feature and may be duplicating effort maintaining a ```CHANGELOG.md``` file as well. Perhaps it\'s time to remove the changelog file from your repository?');
+                }
+                $field->value = $changelog_file;
+                $wrapper->add($field);
+            }
+
+            if (!$has_release_notes && !$has_tagged_log && !$has_changelog_file) {
+
+                $this->getLastCommits($info, $http, $latest_commits);
+                $has_latest_commits = $latest_commits != $latest_commits_default;
+
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'commit-log';
+                $field->label = $this->data['fallbackCommitHistory'] . ' ' . __("Most Recent Commits");
+                if (!$has_latest_commits) {
+                    $field->notes = __('Please consider adding support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging your commits when you go to a new version is better still, as it allows automatic diffing between versions. The best option is to start using the Github Releases feature.');
+                }
+                $field->value = "<div style='max-height: 30em; overflow-y: overlay;overflow-x:overlay'>$latest_commits</div>";
+                $wrapper->add($field);
+            }
+
+            $return_info->children->insertAfter($wrapper, $children[0]);
+        });
+    }
+
+
+    /**
+     *
+     */
+    public function init() {
+        parent::init();
+    }
+
+
+
+    /**
+     *
+     */
+    static public function getModuleConfigInputfields(array $data) {
+
+        $modules   = wire('modules');
+        $config    = wire('config');
+        $page      = wire('page');
+        $fields    = new InputfieldWrapper();
+        $defaults  = self::getDefaultConfig();
+        $data      = array_merge($defaults, $data);
+        /* $scheme    = ($config->https) ? 'https://' : 'http://'; */
+        /* $admin_url = $scheme . $config->httpHost . $config->urls->admin; */
+
+
+        $f = $modules->get('InputfieldInteger');
+        $f->attr('name', 'fallbackCommitHistory');
+        $f->attr('inputType', 'number');
+        $f->attr('type', 'number');
+        $f->label = __('Number of Commits To Show');
+        $f->description = __('If there are no Release Notes, Tagged Commits or Changelog, how many lines of commit history should be shown?');
+        $f->max = 30;
+        $f->min = 2;
+        $f->notes = __("Minimum 2, Maximum 30");
+        $f->attr('value', $data['fallbackCommitHistory']);
+        $fields->add($f);
+
+        return $fields;
+    }
+
+
+    /**
+     * Installs needed resources.
+     */
+    public function ___install() {
+    }
+
+}
