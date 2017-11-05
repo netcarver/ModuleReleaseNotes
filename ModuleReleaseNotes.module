@@ -302,7 +302,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $field->name = 'release-notes';
             if ($has_release_notes) {
                 $field->label  = __("Official Release Notes for $new_version.");
-                $release_notes = "<style>.modrnotes li {margin:0}</style><div style='max-height: 30em; overflow-y: overlay; overflow-x:overlay'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
+                $release_notes = "<style>.modrnotes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='relnote-result'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
                 $field->notes  = $fmt_note;
             } else {
                 $field->label = __("No Official Release Notes for $new_version.");
@@ -329,7 +329,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if ($has_release_notes) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
-                $field->value = "<div style='max-height: 30em; overflow-y: overlay; overflow-x:overlay'>$tagged_log</div>";
+                $field->value = "<div class='relnote-result'>$tagged_log</div>";
                 $wrapper->add($field);
             }
 
@@ -341,7 +341,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $field->label         = __("Changelog from version $new_version");
                     $changelog_file = ($parsedown) ? $parsedown->parsedown($changelog_file) : "<pre>$changelog_file</pre>";
                     $field->notes   = $fmt_note;
-                    $changelog_file = "<style>.modrnotes li {margin:0}</style><div class='modrnotes' style='max-height: 30em; overflow-y: overlay;overflow-x:overlay'>$changelog_file</div>";
+                    $changelog_file = "<style>.modrnotes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='modrnotes relnote-result'>$changelog_file</div>";
                 } else {
                     $field->label = __("No Changelog from version $new_version");
                     $field->notes = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
@@ -365,7 +365,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if (!$has_latest_commits) {
                     $field->notes = __('Please consider adding support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging your commits when you go to a new version is better still, as it allows automatic diffing between versions. The best option is to start using the Github Releases feature.');
                 }
-                $field->value = "<div style='max-height: 30em; overflow-y: overlay;overflow-x:overlay'>$latest_commits</div>";
+                $field->value = "<div class='relnote-result'>$latest_commits</div>";
                 $wrapper->add($field);
             }
 
