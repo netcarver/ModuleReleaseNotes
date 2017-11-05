@@ -35,6 +35,10 @@
 
 class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
+
+    protected $github_remaining_reads = 60;
+
+
     public static function getModuleInfo() {
         return array(
             'title'     => __('Module Release Notes'),
@@ -98,8 +102,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/releases/tags/{$info['module_version']}";
         $result = $http->getJSON($url);
-        $headers = $http->getResponseHeaders();
-        \TD::barDump($headers);
+        $this->recordRemainingReads($http);
         return $result;
     }
 
@@ -112,9 +115,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/compare/{$info['module_version_current']}...{$info['module_version']}";
         $tmp_result = $http->getJSON($url);
-        $headers = $http->getResponseHeaders();
-        \TD::barDump($headers);
-
+        $this->recordRemainingReads($http);
         $code = $http->getHttpCode();
         if(200 == $code && !empty($tmp_result['commits'])) {
             $history = array();
@@ -140,8 +141,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $raw_remote = str_replace('https://github.com/', 'https://raw.githubusercontent.com/', $remote);
         $url = "$raw_remote/master/CHANGELOG.md";
         $result = $http->get($url);
-        $headers = $http->getResponseHeaders();
-        \TD::barDump($headers);
+        $this->recordRemainingReads($http);
         if(200 == $http->getHttpCode()) {
             $changelog = $result;
         }
@@ -179,6 +179,17 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    protected function recordRemainingReads($http) {
+        $headers = $http->getResponseHeaders();
+        if (isset($headers['x-ratelimit-remaining'])) {
+            $this->github_remaining_reads = array(
+                'limit'     => $headers['x-ratelimit-limit'],
+                'remaining' => $headers['x-ratelimit-remaining'],
+                'reset'     => $headers['x-ratelimit-reset'],
+            );
+        }
+    }
+
 
     public function getLastCommits($info, &$http, &$latest_commits) {
         $remote = $info['project_url'];
@@ -188,8 +199,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/commits";
         $result = $http->getJSON($url);
-        $headers = $http->getResponseHeaders();
-        \TD::barDump($headers);
+        $this->recordRemainingReads($http);
         $code = $http->getHttpCode();
         if(200 == $code && !empty($result)) {
             $history = array();
@@ -247,7 +257,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $return_info     = $event->return;
             $children        = $return_info->children;
 
-            \TD::barDump($info);
 
             $wrapper = $this->modules->get('InputfieldFieldset');
             $wrapper->name  = 'changes-wrapper';
@@ -359,6 +368,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->value = "<div style='max-height: 30em; overflow-y: overlay;overflow-x:overlay'>$latest_commits</div>";
                 $wrapper->add($field);
             }
+
+            $wrapper->notes = __("Github API reads remaining: ") . $this->github_remaining_reads['remaining'] .'/'. $this->github_remaining_reads['limit'] . '. ' .
+                              __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
 
             $return_info->children->insertAfter($wrapper, $children[0]);
         });
