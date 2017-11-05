@@ -121,7 +121,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $history = array();
             $commits = $tmp_result['commits'];
             foreach ($commits as $commit) {
-                $message   = wordwrap($commit['commit']['message']);
+                $message   = wordwrap(htmlentities($commit['commit']['message']));
                 $sig       = $this->formatCommitMetaData($commit, $info);
                 $entry     = "<li>$sig<br><pre>$message</pre></li>";
                 $history[] = $entry;
@@ -205,7 +205,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $history = array();
             $commits = array_slice($result, 0, $this->data['fallbackCommitHistory']);
             foreach ($commits as $commit) {
-                $message   = wordwrap($commit['commit']['message']);
+                $message   = wordwrap(htmlentities($commit['commit']['message']));
                 $sig       = $this->formatCommitMetaData($commit, $info);
                 $entry     = "<li>$sig<br><pre>$message</pre></li>";
                 $history[] = $entry;
@@ -278,7 +278,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 // TODO Handle non 200 return codes, or empty body!
                 // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
                 // user
-                $release_notes  = ($parsedown) ? $parsedown->parsedown($tmp_release_notes['body']) : "<pre>{$tmp_release_notes['body']}</pre>";
+                $release_notes  = ($parsedown) ? $parsedown->parsedown($tmp_release_notes['body']) : "<pre>".htmlentities($tmp_release_notes['body'])."</pre>";
                 $release_link  = "$remote/releases/tag/$new_version";
             }
             $has_release_notes = $release_notes != $release_notes_default;
@@ -339,7 +339,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->name = 'changelog';
                 if ($has_changelog_file) {
                     $field->label         = __("Changelog from version $new_version");
-                    $changelog_file = ($parsedown) ? $parsedown->parsedown($changelog_file) : "<pre>$changelog_file</pre>";
+                    $changelog_file = ($parsedown) ? $parsedown->parsedown($changelog_file) : "<pre>".htmlentities($changelog_file)."</pre>";
                     $field->notes   = $fmt_note;
                     $changelog_file = "<style>.modrnotes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='modrnotes relnote-result'>$changelog_file</div>";
                 } else {
