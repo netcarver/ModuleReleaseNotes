@@ -8,19 +8,8 @@
  * http://processwire.com
  *
  *
- * DONE
- * ----
- * Write framework
- * Add config options
- * Add release/tagged diff/changelog/commit list to upgrade form
- *
- * WIP
- * ---
- *
- *
  * TODO
  * ----
- * Add release notes to module information page
  * Add caching to help circumvent hitting hosting service API rate limits
  * Add support for Gitlab hosted repositories via repo-host abstraction
  * Add support for BitBucket hosted repositories via repo-host abstraction
@@ -302,7 +291,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $field->name = 'release-notes';
             if ($has_release_notes) {
                 $field->label  = __("Official Release Notes for $new_version.");
-                $release_notes = "<style>.modrnotes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='relnote-result'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
+                $release_notes = "<style>.module-release-notes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='relnote-result'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
                 $field->notes  = $fmt_note;
             } else {
                 $field->label = __("No Official Release Notes for $new_version.");
@@ -341,7 +330,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $field->label         = __("Changelog from version $new_version");
                     $changelog_file = ($parsedown) ? $parsedown->parsedown($changelog_file) : "<pre>".htmlentities($changelog_file)."</pre>";
                     $field->notes   = $fmt_note;
-                    $changelog_file = "<style>.modrnotes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='modrnotes relnote-result'>$changelog_file</div>";
+                    $changelog_file = "<style>.module-release-notes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='module-release-notes relnote-result'>$changelog_file</div>";
                 } else {
                     $field->label = __("No Changelog from version $new_version");
                     $field->notes = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
@@ -370,10 +359,121 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             }
 
             $wrapper->notes = __("Github API reads remaining: ") . $this->github_remaining_reads['remaining'] .'/'. $this->github_remaining_reads['limit'] . '. ' .
-                              __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
+                __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
 
             $return_info->children->insertAfter($wrapper, $children[0]);
         });
+
+
+
+        /**
+         * Display README and CHANGELOG sections on all module information pages, if these files exist in the
+         * installation. This allows access to a level of help for modules that wasn't there before.
+         */
+        $this->addHookAfter("ProcessModule::executeEdit", function($event){
+            $info         = null;
+            $module_class = '';
+
+            if (isset($_POST['name'])) {
+                $module_class = $_POST['name'];
+            } elseif (isset($_GET['name'])) {
+                $module_class = $_GET['name'];
+            }
+
+            $wrapper = $this->modules->get('InputfieldFieldset');
+            $wrapper->name  = 'changes-wrapper';
+            $wrapper->label = __("What's Changed?");
+
+            $module_class = $this->sanitizer->name($module_class);
+            $info = $this->modules->getModuleInfoVerbose($module_class);
+            $dir = dirname(realpath($info['file']));
+            $readmes = glob("$dir".DIRECTORY_SEPARATOR."README*");
+            foreach ($readmes as $readme_filename) {
+                $content = self::getFormattedTextFromFile($readme_filename, $formatting_notes);
+                if (!$content) continue;
+                $wrapper->add(self::wrapValueInField('readme', $content, __('Readme File'), 'file-text-o', $formatting_notes));
+            }
+
+            $changelogs = glob("$dir".DIRECTORY_SEPARATOR."CHANGELOG*");
+            foreach ($changelogs as $filename) {
+                $content = self::getFormattedTextFromFile($filename, $formatting_notes);
+                if (!$content) continue;
+                $wrapper->add(self::wrapValueInField('changelog', $content, __('Changelog File'), 'tags', $formatting_notes));
+            }
+
+            $module_page = $event->return;
+            $event->return = $wrapper->render() . $module_page;
+        });
+    }
+
+
+
+    static $formatters = array(
+        'md'      => array('type' => 'Markdown', 'use' => 'TextformatterParsedownExtraPlugin'),
+        'textile' => array('type' => 'Textile',  'use' => 'TextformatterTextile'),
+    );
+
+
+
+
+    static function getFormattedTextFromFile($filename, &$transformation_applied) {
+        $transformation_applied = __('none');
+        if (!is_file($filename) || !is_readable($filename)) return false;
+        $content = file_get_contents($filename);
+        if (false !== $content) {
+            // Which extension is the file using?
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            if (empty($ext)) $ext = 'txt';
+
+            $formatter_info = @self::$formatters[$ext];
+            $formatter      = null;
+            if ($formatter_info) {
+                $formatter = wire('modules')->get($formatter_info['use']);
+            }
+
+            if ($formatter) {
+                $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $content);
+                $transformation_applied = sprintf(__("Prepared using the %s formatter."), $formatter_info['type']);
+            } else {
+                $content = "<pre>" . wordwrap($content) . "</pre>";
+
+                if ($formatter_info) {
+                    $transformation_applied = sprintf(__("Prepared using verbatim formatter because the %s formatter [%s] is not available."), $formatter_info['type'], $formatter_info['use']);
+                } else {
+                    $transformation_applied = __("Prepared using verbatim formatter.");
+                }
+            }
+        }
+        return $content;
+    }
+
+
+    static function getEmbeddedStyles() {
+        $value = <<<CSS
+<style>
+.module-release-notes {overflow-x:overlay;padding-bottom:1em}
+.module-release-notes h1 {margin-top:1.5em;font-size:1.5em}
+.module-release-notes h2 {margin-top: 1em}
+.module-release-notes li {margin:0}
+.module-release-notes ul {margin-bottom:2em}
+</style>
+CSS;
+
+        return $value;
+    }
+
+
+
+    static function wrapValueInField($name, $value, $label, $icon, $notes) {
+        $value = self::getEmbeddedStyles() . "<div class='module-release-notes'>$value</div>";
+        $f = wire('modules')->get('InputfieldMarkup');
+        $f->name = $name;
+        $f->label = $label;
+        $f->notes = $notes;
+        $f->value = $value;
+        $f->collapsed = Inputfield::collapsedYes;
+        $f->icon = $icon;
+        return $f;
     }
 
 
