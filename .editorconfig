@@ -1,0 +1,24 @@
+# See http://editorconfig.org
+root = true
+
+# Defaults for all files
+[*]
+end_of_line = lf
+charset = utf-8
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Markdown Files - trailing whitespace is significant, leave it in...
+[*.{md,mkd,markdown}]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+# Configuration Files
+[*.{json,xml,yml,yaml}]
+indent_size = 2
+
+# Web Files
+[*.{htm,html,js,ts,css,scss,less}]
+indent_size = 2
