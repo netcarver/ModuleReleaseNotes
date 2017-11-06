@@ -256,6 +256,13 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     public function ready() {
 
         /**
+         * Inject common stylesheet into download confirm page
+         */
+        $this->addHookAfter("ProcessModule::execute", function($event) {
+            $event->return = self::getEmbeddedStyles() . $event->return;
+        });
+
+        /**
          * Add Release notes and/or a list of commits between tags and/or the latest changelog and/or the latest
          * commit messages to the download confirmation form.
          */
@@ -342,7 +349,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $field->name = 'release-notes';
             if ($has_release_notes) {
                 $field->label  = __("Official Release Notes for $new_version.");
-                $release_notes = "<style>.module-release-notes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='relnote-result'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
+                $release_notes = "<div class='module-release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
                 $field->notes  = $fmt_note;
             } else {
                 $field->label = __("No Official Release Notes for $new_version.");
@@ -369,7 +376,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if ($has_release_notes) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
-                $field->value = "<div class='relnote-result'>$tagged_log</div>";
+                $field->value = "<div class='module-release-notes'>$tagged_log</div>";
                 $wrapper->add($field);
             }
 
@@ -382,7 +389,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $message        = $this->sanitizeString($changelog_file, (bool)$parsedown);
                     $changelog_file = ($parsedown) ? $parsedown->parsedown($message) : "<pre>$message</pre>";
                     $field->notes   = $fmt_note;
-                    $changelog_file = "<style>.module-release-notes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='module-release-notes relnote-result'>$changelog_file</div>";
+                    $changelog_file = "<div class='module-release-notes'>$changelog_file</div>";
                 } else {
                     $field->label   = __("No Changelog from version $new_version");
                     $field->notes   = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
@@ -406,7 +413,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if (!$has_latest_commits) {
                     $field->notes = __('Please consider adding support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging your commits when you go to a new version is better still, as it allows automatic diffing between versions. The best option is to start using the Github Releases feature.');
                 }
-                $field->value = "<div class='relnote-result'>$latest_commits</div>";
+                $field->value = "<div class='module-release-notes'>$latest_commits</div>";
                 $wrapper->add($field);
             }
 
@@ -560,7 +567,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $value = <<<CSS
 <style>
 .module-release-notes {overflow-x:overlay;padding-bottom:1em}
-.module-release-notes h1 {margin-top:1.5em;font-size:1.5em}
+.module-release-notes h1 {margin-top:1em !important; font-size:1.5em}
 .module-release-notes h2 {margin-top: 1em}
 .module-release-notes li {margin:0}
 .module-release-notes ul {margin-bottom:2em}
