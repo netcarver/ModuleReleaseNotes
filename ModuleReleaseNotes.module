@@ -10,12 +10,17 @@
  *
  * TODO
  * ----
+ * Bugfix: multiple declaration of $parsedown
+ * Bugfix: use of <pre> wrapper insufficient to prevent XSS from displayed readme and changelogs
+ * Fix scrolling on long entries.
+ *
  * Add caching to help circumvent hitting hosting service API rate limits
  * Add support for Gitlab hosted repositories via repo-host abstraction
  * Add support for BitBucket hosted repositories via repo-host abstraction
  * Move support for GitHub into repo-host abstraction
  * Add public data-access API for other modules to use
- *
+ * Add highlighting of breaking changes.
+ * Add notes to ___executeInstallConfirm() so they are seen on initial install, not just upgrade and post-install
  *
  * Known Issues
  * ------------
@@ -55,7 +60,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     /**
-     *
+     * Make config data available within the instance variable.
      */
     public function __construct() {
         foreach(self::getDefaultConfig() as $key => $value) {
@@ -84,6 +89,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
+    /**
+     * Get githubs ReleaseNotes entry for the given module.
+     *
+     * As far as I know, this is only applicable to repos hosted at Github.
+     * TODO rework to operate in the same manner as the other getters.
+     */
     public function getReleaseNotes($info, &$http) {
         // TODO add caching (stop us from hitting API request limits
         // Look for release notes
@@ -96,8 +107,26 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * Sanitise a string for further processing and display.
+     *
+     * If you are going to be passing the string to a ML like Markdown or Textile, you might want to do an entity_decode
+     * first to cause HTML entities to be mapped to utf-8 characters where possible. This will allow for text with
+     * diacritics/non ASCII characters to appear as they should and not as embedded HTML Entities.
+     *
+     */
+    public function sanitizeString($string, $entity_decode = false) {
+        if ($entity_decode) {
+            $string = html_entity_decode($string, ENT_COMPAT, 'UTF-8');
+        }
+        return htmlspecialchars($string, ENT_COMPAT, 'UTF-8');
+    }
 
 
+
+    /**
+     *
+     */
     public function getTaggedLog($info, &$http, &$tagged_log) {
         // TODO add caching (stop us from hitting API request limits
         $remote = $info['project_url'];
@@ -110,7 +139,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $history = array();
             $commits = $tmp_result['commits'];
             foreach ($commits as $commit) {
-                $message   = wordwrap(htmlentities($commit['commit']['message']));
+                $message   = $this->sanitizeString($commit['commit']['message']);
+                $message   = wordwrap($message);
                 $sig       = $this->formatCommitMetaData($commit, $info);
                 $entry     = "<li>$sig<br><pre>$message</pre></li>";
                 $history[] = $entry;
@@ -124,7 +154,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
-
+    /**
+     * Get the changelog file for the given module.
+     *
+     * Currently only knows about Github.
+     */
     public function getChangelog($info, &$http, &$changelog) {
         $remote = $info['project_url'];
         $raw_remote = str_replace('https://github.com/', 'https://raw.githubusercontent.com/', $remote);
@@ -138,7 +172,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
-    public function remoteInfo($remote) {
+    /**
+     * Examine the remote URL to determine the hosting service and icon to use.
+     */
+    public function remoteHostInfo($remote) {
         if (false !== stripos($remote, '://github.com')) {
             return array(
                 'host' => 'Github',
@@ -168,6 +205,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+
+    /**
+     * Pulls the x-ratelimit headers from Github.
+     */
     protected function recordRemainingReads($http) {
         $headers = $http->getResponseHeaders();
         if (isset($headers['x-ratelimit-remaining'])) {
@@ -180,11 +221,13 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * Pulls the last N commits for the given module.
+     *
+     * Currently only knows about Github.
+     */
     public function getLastCommits($info, &$http, &$latest_commits) {
         $remote = $info['project_url'];
-        //
-        // Resort to listing the last X commits on the repo...
-        //
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/commits";
         $result = $http->getJSON($url);
@@ -194,7 +237,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $history = array();
             $commits = array_slice($result, 0, $this->data['fallbackCommitHistory']);
             foreach ($commits as $commit) {
-                $message   = wordwrap(htmlentities($commit['commit']['message']));
+                $message   = $this->sanitizeString($commit['commit']['message']);
+                $message   = wordwrap($message);
                 $sig       = $this->formatCommitMetaData($commit, $info);
                 $entry     = "<li>$sig<br><pre>$message</pre></li>";
                 $history[] = $entry;
@@ -206,9 +250,15 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     /**
-     *
+     * Add hooks to display release information to modules prior to upgrade and add the readme and changelog to module
+     * information pages.
      */
     public function ready() {
+
+        /**
+         * Add Release notes and/or a list of commits between tags and/or the latest changelog and/or the latest
+         * commit messages to the download confirmation form.
+         */
         $this->addHookAfter("ProcessModule::buildDownloadConfirmForm", function($event) {
             $info            = $event->arguments[0];
             $module_class    = $info['class_name'];
@@ -216,7 +266,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $current_version = $current_info['version'];
             $new_version     = $info['module_version'];
             $remote          = $info['project_url'];
-            $remote_info     = $this->remoteInfo($remote);
+            $remote_info     = $this->remoteHostInfo($remote);
             $repo_icon       = $remote_info['icon'];
             $remote_icon     = '<i class="fa fa-icon fa-external-link"></i>';
             $is_github_repo  = (false !== stripos($remote, '://github.com'));
@@ -267,7 +317,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 // TODO Handle non 200 return codes, or empty body!
                 // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
                 // user
-                $release_notes  = ($parsedown) ? $parsedown->parsedown($tmp_release_notes['body']) : "<pre>".htmlentities($tmp_release_notes['body'])."</pre>";
+                $message       = $this->sanitizeString($tmp_release_notes['body'], (bool)$parsedown);
+                $release_notes = ($parsedown) ? $parsedown->parsedown($message) : "<pre>$message</pre>";
                 $release_link  = "$remote/releases/tag/$new_version";
             }
             $has_release_notes = $release_notes != $release_notes_default;
@@ -327,17 +378,18 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'changelog';
                 if ($has_changelog_file) {
-                    $field->label         = __("Changelog from version $new_version");
-                    $changelog_file = ($parsedown) ? $parsedown->parsedown($changelog_file) : "<pre>".htmlentities($changelog_file)."</pre>";
+                    $field->label   = __("Changelog from version $new_version");
+                    $message        = $this->sanitizeString($changelog_file, (bool)$parsedown);
+                    $changelog_file = ($parsedown) ? $parsedown->parsedown($message) : "<pre>$message</pre>";
                     $field->notes   = $fmt_note;
                     $changelog_file = "<style>.module-release-notes li {margin:0}\n.relnote-result {overflow-x:overlay}</style><div class='module-release-notes relnote-result'>$changelog_file</div>";
                 } else {
-                    $field->label = __("No Changelog from version $new_version");
-                    $field->notes = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
+                    $field->label   = __("No Changelog from version $new_version");
+                    $field->notes   = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
                 }
                 if ($has_release_notes) {
                     $field->collapsed = Inputfield::collapsedYes;
-                    $field->notes .= __('You are already using the Releases feature and may be duplicating effort maintaining a ```CHANGELOG.md``` file as well. Perhaps it\'s time to remove the changelog file from your repository?');
+                    $field->notes    .= __('You are already using the Releases feature and may be duplicating effort maintaining a ```CHANGELOG.md``` file as well. Perhaps it\'s time to remove the changelog file from your repository?');
                 }
                 $field->value = $changelog_file;
                 $wrapper->add($field);
@@ -389,65 +441,121 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $dir = dirname(realpath($info['file']));
             $readmes = glob("$dir".DIRECTORY_SEPARATOR."README*");
             foreach ($readmes as $readme_filename) {
-                $content = self::getFormattedTextFromFile($readme_filename, $formatting_notes);
+                $content = $this->getFormattedTextFromFile($readme_filename, $formatting_notes);
                 if (!$content) continue;
                 $wrapper->add(self::wrapValueInField('readme', $content, __('Readme File'), 'file-text-o', $formatting_notes));
             }
 
             $changelogs = glob("$dir".DIRECTORY_SEPARATOR."CHANGELOG*");
             foreach ($changelogs as $filename) {
-                $content = self::getFormattedTextFromFile($filename, $formatting_notes);
+                $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
                 if (!$content) continue;
                 $wrapper->add(self::wrapValueInField('changelog', $content, __('Changelog File'), 'tags', $formatting_notes));
             }
 
-            $module_page = $event->return;
-            $event->return = $wrapper->render() . $module_page;
+            $module_page   = $event->return;
+            $styles        = self::getEmbeddedStyles();
+            $event->return = $styles. $wrapper->render() . $module_page;
         });
     }
 
 
 
+    /**
+     * Lists mappings of file extensions to markup language and preferred textformatter to be used.
+     *
+     * Anything not matching the list here (or if the formatter fails to be loaded) will be escaped and output
+     * 'verbatim'.
+     */
     static $formatters = array(
         'md'      => array('type' => 'Markdown', 'use' => 'TextformatterParsedownExtraPlugin'),
-        'textile' => array('type' => 'Textile',  'use' => 'TextformatterTextile'),
+        //'textile' => array('type' => 'Textile',  'use' => 'TextformatterTextile'),
     );
 
 
-
-
-    static function getFormattedTextFromFile($filename, &$transformation_applied) {
-        $transformation_applied = __('none');
-        if (!is_file($filename) || !is_readable($filename)) return false;
-        $content = file_get_contents($filename);
-        if (false !== $content) {
-            // Which extension is the file using?
-            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            if (empty($ext)) $ext = 'txt';
-
-            $formatter_info = @self::$formatters[$ext];
-            $formatter      = null;
-            if ($formatter_info) {
-                $formatter = wire('modules')->get($formatter_info['use']);
-            }
-
-            if ($formatter) {
-                $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $content);
-                $transformation_applied = sprintf(__("Prepared using the %s formatter."), $formatter_info['type']);
-            } else {
-                $content = "<pre>" . wordwrap($content) . "</pre>";
-
-                if ($formatter_info) {
-                    $transformation_applied = sprintf(__("Prepared using verbatim formatter because the %s formatter [%s] is not available."), $formatter_info['type'], $formatter_info['use']);
-                } else {
-                    $transformation_applied = __("Prepared using verbatim formatter.");
+    /**
+     * Returns a formatter for the given file extension (if possible)
+     */
+    static function getFormatterForFiletype($ext, &$formatter_info) {
+        $ext = strtolower($ext);
+        if (empty($ext)) $ext = 'txt';
+        $formatter_info = @self::$formatters[$ext];
+        $formatter      = null; // null => no load tried. false => load tried and failed.
+        if ($formatter_info) {
+            $formatter = @$formatter_info['instance'];
+            if (null === $formatter) {
+                if (is_string($formatter_info['use']) && !empty($formatter_info['use'])) {
+                    $formatter = wire('modules')->get($formatter_info['use']);
                 }
+                self::$formatters[$ext]['instance'] = ($formatter) ? $formatter: false;
+            }
+        }
+        return $formatter;
+    }
+
+
+    /**
+     * Given a filename, tries to read and format the content with an appropriate textformatter.
+     */
+    public function getFormattedTextFromFile($filename, &$transformation_applied) {
+        $transformation_applied = __('None');
+        if (!is_file($filename) || !is_readable($filename)) return false;
+        // Which extension is the file using?
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (empty($ext)) $ext = 'txt';
+        $content = file_get_contents($filename);
+        return (false !== $content) ? self::formatTextOfType($ext, $content, $transformation_applied) : false;
+    }
+
+
+    /**
+     * Tries to apply an appropriate textformatter to a given content string.
+     * If no suitable external formatter is available, it will be passed through an internal 'verbatim' formatter.
+     *
+     * It also records which formatter was applied.
+     */
+    static function formatTextOfType($ext, $content, &$transformation_applied) {
+        $formatter = self::getFormatterForFiletype($ext, $formatter_info);
+        if ($formatter) {
+            /**
+             * Display using formatter. Need to prevent possible XSS vectors here so it is all escaped...
+             *
+             * We call html_entity_decode() to convert entities to their UTF-8 character versions when possible,
+             * before then passing it through htmlspecialchars() to encode angle brackets and quotes. If this is not
+             * done then some characters with diacritic marks remain as html entities in the code.
+             */
+            $content = html_entity_decode($content, ENT_COMPAT, 'UTF-8');
+            $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
+            $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $content);
+            $transformation_applied = sprintf(__("Prepared using the %s formatter."), $formatter_info['type']) . " [$ext]";
+        } else {
+            /**
+             * Display verbatim. Need to prevent possible XSS vectors here so it is all escaped...
+             */
+            $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
+            $content = "<pre>$content</pre>";
+
+            if ($formatter_info) {
+                /**
+                 * formatter_info existing shows we had a textformatter entry for this filetype but couldn't load it
+                 */
+                $transformation_applied = sprintf(
+                    __("Prepared using verbatim formatter because the %s formatter [%s] is not available."),
+                    $formatter_info['type'],
+                    $formatter_info['use']
+                ) . " [$ext]";
+            } else {
+                $transformation_applied = __("Prepared using verbatim formatter.") . " [$ext]";
             }
         }
         return $content;
     }
 
 
+
+    /**
+     * TODO Only apply this stylesheet once on the admin page we are injecting into.
+     */
     static function getEmbeddedStyles() {
         $value = <<<CSS
 <style>
@@ -464,8 +572,11 @@ CSS;
 
 
 
+    /**
+     * Builds a markup input field to contain the given information.
+     */
     static function wrapValueInField($name, $value, $label, $icon, $notes) {
-        $value = self::getEmbeddedStyles() . "<div class='module-release-notes'>$value</div>";
+        $value = "<div class='module-release-notes'>$value</div>";
         $f = wire('modules')->get('InputfieldMarkup');
         $f->name = $name;
         $f->label = $label;
@@ -492,14 +603,9 @@ CSS;
     static public function getModuleConfigInputfields(array $data) {
 
         $modules   = wire('modules');
-        $config    = wire('config');
-        $page      = wire('page');
         $fields    = new InputfieldWrapper();
         $defaults  = self::getDefaultConfig();
         $data      = array_merge($defaults, $data);
-        /* $scheme    = ($config->https) ? 'https://' : 'http://'; */
-        /* $admin_url = $scheme . $config->httpHost . $config->urls->admin; */
-
 
         $f = $modules->get('InputfieldInteger');
         $f->attr('name', 'fallbackCommitHistory');
