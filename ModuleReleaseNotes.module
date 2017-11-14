@@ -158,7 +158,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $history   = implode("", $history);
             $diff_url  = $tmp_result['html_url'];
             $diff_link = "(<a href='$diff_url' target='_diff'>View diff. {$info['remote_icon']}</i></a>)";
-            $tagged_log = "<ul>$history</ul><p><a href='$diff_url' target='_diff'>{$info['repo_icon']} View Entire Diff.</a></p>";
+            $tagged_log = "<ul class='commits'>$history</ul><p><a href='$diff_url' target='_diff'>{$info['repo_icon']} View Entire Diff.</a></p>";
         }
     }
 
@@ -254,7 +254,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $history[] = $entry;
             }
             $history   = implode("", $history);
-            $latest_commits = "<ul>$history</ul>";
+            $latest_commits = "<ul class='commits'>$history</ul>";
         }
     }
 
@@ -355,7 +355,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             if ($has_release_notes) {
                 $field->label  = __("Official Release Notes for $new_version.");
                 $release_notes = "<div class='module-release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
-                $field->notes  = $fmt_note;
+                if ($this->config->debug) $field->notes = $fmt_note;
             } else {
                 $field->label = __("No Official Release Notes for $new_version.");
                 $field->notes = __('To add official release notes, please ask the module author to start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. They will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) the code as they push new versions in order to use this feature.');
@@ -392,13 +392,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if ($has_changelog_file) {
                     $field->label   = __("Changelog from version $new_version");
                     $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note);
-                    $field->notes   = $fmt_note;
+                    $changelog_file = $this->highlightChangelogBetweenVersions($changelog_file, $current_version, $new_version);
+                    if ($this->config->debug) $field->notes = $fmt_note;
                     $changelog_file = "<div class='module-release-notes'>$changelog_file</div>";
                 } else {
                     $field->label   = __("No Changelog from version $new_version");
                     $field->notes   = __('If the author does not want to tag versions or cut releases, then they could consider adding (and maintaining) a ```CHANGELOG``` file in the root of the module repository. If they do, it will show up here. If they already use the releases feature, or tag module versions, this is not necessary and can lead to duplicated effort.');
                 }
-                if ($has_release_notes) {
+                if ($has_release_notes || $has_tagged_log) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
                 $field->value = $changelog_file;
@@ -420,8 +421,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $wrapper->add($field);
             }
 
-            $wrapper->notes = __("Github API reads remaining: ") . $this->github_remaining_reads['remaining'] .'/'. $this->github_remaining_reads['limit'] . '. ' .
-                __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
+            if ($this->config->debug) {
+                $wrapper->notes = __("Github API reads remaining: ") . $this->github_remaining_reads['remaining'] .'/'. $this->github_remaining_reads['limit'] . '. ' .
+                    __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
+            }
 
             $return_info->children->insertAfter($wrapper, $children[0]);
         });
@@ -455,32 +458,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
             $dir = dirname(realpath($info['file']));
 
-            $readmes = glob($dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
-            foreach ($readmes as $filename) {
-                $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
-                if (!$content) continue;
-                $basename = basename($filename);
-                $wrapper->add(self::wrapValueInField('readme', $content, $basename, 'book', $formatting_notes));
-                $append_info = true;
-            }
-
-            $changelogs = glob($dir.DIRECTORY_SEPARATOR."[Cc][Hh][Aa][Nn][Gg][Ee][Ll][Oo][Gg]*");
-            foreach ($changelogs as $filename) {
-                $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
-                if (!$content) continue;
-                $basename = basename($filename);
-                $wrapper->add(self::wrapValueInField('changelog', $content, $basename, 'tags', $formatting_notes));
-                $append_info = true;
-            }
-
-            $licensefiles = glob($dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
-            foreach ($licensefiles as $filename) {
-                $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
-                if (!$content) continue;
-                $basename = basename($filename);
-                $wrapper->add(self::wrapValueInField('license', $content, $basename, 'balance-scale', $formatting_notes));
-                $append_info = true;
-            }
+            $append_info |= $this->addSupportFiles('readme',    'book',          $wrapper, $dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
+            $append_info |= $this->addSupportFiles('changelog', 'tags',          $wrapper, $dir.DIRECTORY_SEPARATOR."[Cc][Hh][Aa][Nn][Gg][Ee][Ll][Oo][Gg]*");
+            $append_info |= $this->addSupportFiles('readme',    'balance-scale', $wrapper, $dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
 
             if ($append_info) {
                 $outer_wrapper->add($wrapper);
@@ -492,6 +472,23 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * Searches for all files matching the given glob and attempts to read and format the contents of any
+     * matches. These are added to the given wrapper.
+     */
+    protected function addSupportFiles($section, $icon, &$wrapper, $glob_regex) {
+        $append_info = false;
+        $files = glob($glob_regex);
+        foreach ($files as $filename) {
+            $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
+            if (!$content) continue;
+            $basename = basename($filename);
+            if (!$this->config->debug) $formatting_notes = '';
+            $wrapper->add(self::wrapValueInField($section, $content, $basename, $icon, $formatting_notes));
+            $append_info = true;
+        }
+        return $append_info;
+    }
 
 
 
@@ -565,43 +562,66 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * It also records which formatter was applied.
      */
     protected function formatTextOfType($ext, $unsafe_content, &$transformation_applied) {
-        $formatter = self::getFormatterForFiletype($ext, $formatter_info);
+        $transforms = [];
+        $reason     = '';
+        $formatter  = self::getFormatterForFiletype($ext, $formatter_info);
         if ($formatter) {
             /**
              * Display using formatter. Need to prevent possible XSS vectors here so it is all escaped...
+             */
+            $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
+            $transforms[] = $formatter_info['type'];
+            $content = $this->sanitizeString($unsafe_content);
+            $transforms[] = 'HTML Purifier';
+        } else {
+            /**
+             * Display verbatim. Need to prevent possible XSS vectors here so it is all escaped...
              *
              * We call html_entity_decode() to convert entities to their UTF-8 character versions when possible,
              * before then passing it through htmlspecialchars() to encode angle brackets and quotes. If this is not
              * done then some characters with diacritic marks remain as html entities in the code.
              */
-            $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
-            $content = $this->sanitizeString($unsafe_content);
-            $transformation_applied = sprintf(__("Prepared using the %s formatter."), $formatter_info['type']) . " [$ext]";
-        } else {
-            /**
-             * Display verbatim. Need to prevent possible XSS vectors here so it is all escaped...
-             */
             $content = html_entity_decode($unsafe_content, ENT_COMPAT, 'UTF-8');
+            $transforms[] = 'HTML Entity Decode';
             $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
+            $transforms[] = 'HTML Special Character Encode';
             $content = $this->utf8_wordwrap($content);
+            $transforms[] = 'UTF8 Wordwrap';
             $content = "<pre>$content</pre>";
 
             if ($formatter_info) {
                 /**
                  * formatter_info existing shows we had a textformatter entry for this filetype but couldn't load it
                  */
-                $transformation_applied = sprintf(
-                    __("Prepared using verbatim formatter because the %s formatter [%s] is not available."),
+                $reason = sprintf(
+                    __(" because the %s formatter [%s] is not available"),
                     $formatter_info['type'],
                     $formatter_info['use']
-                ) . " [$ext]";
-            } else {
-                $transformation_applied = __("Prepared using verbatim formatter.") . " [$ext]";
+                );
             }
         }
+        $transforms = implode(' &rarr; ', $transforms);
+        $transformation_applied = sprintf(__("Prepared text (type '%s') using the ```%s``` format chain%s."), $ext, $transforms, $reason);
         return $content;
     }
 
+
+
+    /**
+     * Wraps the given low and high version strings with a span that can be styled.
+     *
+     * When applied to the current and latest version numbers, allows easy visual identification of applicable changes.
+     */
+    protected function highlightChangelogBetweenVersions($log, $low_version, $high_version=false, $str_low=false, $str_high=false) {
+        if (false === $str_high) $str_high = __("Latest => ");
+        if (false === $str_low)  $str_low  = __("Installed => ");
+        if (false !== $high_version) {
+            $log = str_replace($high_version, "<span class='high-version'><span class='annotation'>$str_high</span>$high_version</span>", $log);
+        }
+        $log = str_replace($low_version,  "<span class='low-version'><span class='annotation'>$str_low</span>$low_version</span>", $log);
+
+        return $log;
+    }
 
 
     /**
@@ -609,15 +629,25 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     static function getEmbeddedStyles() {
         $value = <<<CSS
 <style>
-.module-release-notes {overflow-x:overlay;padding-bottom:1em}
+.module-release-notes {max-width:100%}
 .module-release-notes h1 {margin-top:1em !important; font-size:1.5em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
 .module-release-notes h2 {margin-top:1em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
-.module-release-notes li {margin:0}
-.module-release-notes ul {margin-bottom:2em}
+.module-release-notes ol {margin-bottom:1em;padding-left:2em}
+.module-release-notes ul {margin-bottom:1em;list-style-type:disc;padding-left:2em}
+.module-release-notes ul ul {list-style-type:circle}
+.module-release-notes li {margin:0;display:list-item}
 .module-release-notes strong {font-weight:700}
 .module-release-notes em {font-style:italic}
 .module-release-notes span.sig {font-family:monospace}
-.module-release-notes li.commit {padding-bottom:1em}
+.module-release-notes span.high-version    {background-color:#cccc66;padding:5px;border-radius:5px}
+.module-release-notes span.low-version     {background-color:#66dd66;padding:5px;border-radius:5px}
+.module-release-notes span.breaking-change {background-color:#dd6666;padding:5px;border-radius:5px}
+.module-release-notes span.annotation      {font-size:small}
+.module-release-notes ul.commits{padding-left:0;list-style-type:none}
+.module-release-notes li.commit {padding-bottom:1em;display:block}
+.module-release-notes blockquote {padding:0 1em;color:#6a737d;border-left:0.25em solid #dfe2e5}
+.module-release-notes pre {overflow-x:auto;background-color:#fcfcfc;word-wrap:normal;padding:0 1em;border-radius:5px}
+.module-release-notes p code, .module-release-notes li code {background-color:#f3f3f3;border-radius:5px;padding:2px 10px}
 </style>
 CSS;
 
@@ -634,7 +664,7 @@ CSS;
         $f = wire('modules')->get('InputfieldMarkup');
         $f->name = $name;
         $f->label = $label;
-        $f->notes = $notes;
+        if (!empty(trim($notes))) $f->notes = $notes;
         $f->value = $value;
         $f->collapsed = Inputfield::collapsedYes;
         $f->icon = $icon;
