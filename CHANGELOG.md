@@ -1,3 +1,6 @@
+## 0.3.2 2017-11-14
+- Add MIT license.
+
 ## 0.3.1 2017-11-14
 - Add example README files for XSS injection, language characters and code display.
 
