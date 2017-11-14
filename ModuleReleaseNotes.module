@@ -20,7 +20,6 @@
  * Move support for GitHub into repo-host abstraction
  * Add public data-access API for other modules to use
  * Add highlighting of breaking changes.
- * Add notes to ___executeInstallConfirm() so they are seen on initial install, not just upgrade and post-install
  *
  * Known Issues
  * ------------
@@ -55,8 +54,20 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     static public function getDefaultConfig() {
         return array(
             'fallbackCommitHistory' => 12,
+            'openSettings'          => 0,
         );
     }
+
+
+    /**
+     * Lists mappings of file extensions to markup language and preferred textformatter to be used.
+     *
+     * Anything not matching the list here (or if the formatter fails to be loaded) will be escaped and output
+     * 'verbatim'.
+     */
+    static $formatters = array(
+        'md'      => array('type' => 'Markdown', 'use' => 'TextformatterParsedownExtraPlugin'),
+    );
 
 
     /**
@@ -114,12 +125,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * first to cause HTML entities to be mapped to utf-8 characters where possible. This will allow for text with
      * diacritics/non ASCII characters to appear as they should and not as embedded HTML Entities.
      *
+     * TODO Perhaps use some JS to clean up these from code blocks in certain divs.
      */
-    public function sanitizeString($string, $entity_decode = false) {
-        if ($entity_decode) {
-            $string = html_entity_decode($string, ENT_COMPAT, 'UTF-8');
-        }
-        return htmlspecialchars($string, ENT_COMPAT, 'UTF-8');
+    public function sanitizeString($string) {
+        $san = wire('sanitizer');
+        $string = $san->purify($string);
+        return $string;
     }
 
 
@@ -255,6 +266,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      */
     public function ready() {
 
+        if (!$this->user->isLoggedin() || !$this->user->hasPermission('module-admin')) return;
+
         /**
          * Inject common stylesheet into download confirm page
          */
@@ -289,12 +302,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             ksort($info);
 
             $changes         = $current_version != $new_version;
-            $parsedown       = $this->modules->get('TextformatterParsedownExtraPlugin');
-            if ($parsedown) {
-                $fmt_note = __('Markdown formatted text shown');
-            } else {
-                $fmt_note = __('Raw text shown');
-            }
 
             $http = new WireHttp();
             $http->setHeader('User-Agent', 'netcarver-pw-module-version-checker');
@@ -324,8 +331,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 // TODO Handle non 200 return codes, or empty body!
                 // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
                 // user
-                $message       = $this->sanitizeString($tmp_release_notes['body'], (bool)$parsedown);
-                $release_notes = ($parsedown) ? $parsedown->parsedown($message) : "<pre>$message</pre>";
+                $release_notes = $this->formatTextOfType('md', $tmp_release_notes['body'], $fmt_note);
                 $release_link  = "$remote/releases/tag/$new_version";
             }
             $has_release_notes = $release_notes != $release_notes_default;
@@ -386,8 +392,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->name = 'changelog';
                 if ($has_changelog_file) {
                     $field->label   = __("Changelog from version $new_version");
-                    $message        = $this->sanitizeString($changelog_file, (bool)$parsedown);
-                    $changelog_file = ($parsedown) ? $parsedown->parsedown($message) : "<pre>$message</pre>";
+                    $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note);
                     $field->notes   = $fmt_note;
                     $changelog_file = "<div class='module-release-notes'>$changelog_file</div>";
                 } else {
@@ -429,55 +434,67 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
          * Display README and CHANGELOG sections on all module information pages, if these files exist in the
          * installation. This allows access to a level of help for modules that wasn't there before.
          */
-        $this->addHookAfter("ProcessModule::executeEdit", function($event){
+        $this->addHookAfter("ProcessModule::executeEdit", function($event) {
             $info         = null;
             $module_class = '';
+            $append_info  = false;
 
             if (isset($_POST['name'])) {
                 $module_class = $_POST['name'];
             } elseif (isset($_GET['name'])) {
                 $module_class = $_GET['name'];
             }
-
-            $wrapper = $this->modules->get('InputfieldFieldset');
-            $wrapper->name  = 'changes-wrapper';
-            $wrapper->label = __("What's Changed?");
-
             $module_class = $this->sanitizer->name($module_class);
             $info = $this->modules->getModuleInfoVerbose($module_class);
+
+
+            $outer_wrapper = new InputfieldWrapper();
+            $wrapper = $this->modules->get('InputfieldFieldset');
+            $wrapper->name  = 'changes-wrapper';
+            $wrapper->label = __("Support Files");
+            $wrapper->icon  = 'file-text-o';
+            $wrapper->collapsed = $this->data['openSettings'] ? Inputfield::collapsedNo : Inputfield::collapsedYes;
+
             $dir = dirname(realpath($info['file']));
-            $readmes = glob("$dir".DIRECTORY_SEPARATOR."README*");
-            foreach ($readmes as $readme_filename) {
-                $content = $this->getFormattedTextFromFile($readme_filename, $formatting_notes);
+
+            $readmes = glob($dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
+            foreach ($readmes as $filename) {
+                $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
                 if (!$content) continue;
-                $wrapper->add(self::wrapValueInField('readme', $content, __('Readme File'), 'file-text-o', $formatting_notes));
+                $basename = basename($filename);
+                $wrapper->add(self::wrapValueInField('readme', $content, $basename, 'book', $formatting_notes));
+                $append_info = true;
             }
 
-            $changelogs = glob("$dir".DIRECTORY_SEPARATOR."CHANGELOG*");
+            $changelogs = glob($dir.DIRECTORY_SEPARATOR."[Cc][Hh][Aa][Nn][Gg][Ee][Ll][Oo][Gg]*");
             foreach ($changelogs as $filename) {
                 $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
                 if (!$content) continue;
-                $wrapper->add(self::wrapValueInField('changelog', $content, __('Changelog File'), 'tags', $formatting_notes));
+                $basename = basename($filename);
+                $wrapper->add(self::wrapValueInField('changelog', $content, $basename, 'tags', $formatting_notes));
+                $append_info = true;
             }
 
-            $module_page   = $event->return;
-            $styles        = self::getEmbeddedStyles();
-            $event->return = $styles. $wrapper->render() . $module_page;
+            $licensefiles = glob($dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
+            foreach ($licensefiles as $filename) {
+                $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
+                if (!$content) continue;
+                $basename = basename($filename);
+                $wrapper->add(self::wrapValueInField('license', $content, $basename, 'balance-scale', $formatting_notes));
+                $append_info = true;
+            }
+
+            if ($append_info) {
+                $outer_wrapper->add($wrapper);
+                $module_page   = $event->return;
+                $styles        = self::getEmbeddedStyles();
+                $event->return = $styles. $outer_wrapper->render() . $module_page;
+            }
         });
     }
 
 
 
-    /**
-     * Lists mappings of file extensions to markup language and preferred textformatter to be used.
-     *
-     * Anything not matching the list here (or if the formatter fails to be loaded) will be escaped and output
-     * 'verbatim'.
-     */
-    static $formatters = array(
-        'md'      => array('type' => 'Markdown', 'use' => 'TextformatterParsedownExtraPlugin'),
-        //'textile' => array('type' => 'Textile',  'use' => 'TextformatterTextile'),
-    );
 
 
     /**
@@ -511,8 +528,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         if (empty($ext)) $ext = 'txt';
         $content = file_get_contents($filename);
-        return (false !== $content) ? self::formatTextOfType($ext, $content, $transformation_applied) : false;
+        if (false !== $content && !empty(trim($content))) {
+            return $this->formatTextOfType($ext, $content, $transformation_applied);
+        }
+        return false;
     }
+
 
 
     /**
@@ -521,7 +542,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      *
      * It also records which formatter was applied.
      */
-    static function formatTextOfType($ext, $content, &$transformation_applied) {
+    protected function formatTextOfType($ext, $unsafe_content, &$transformation_applied) {
         $formatter = self::getFormatterForFiletype($ext, $formatter_info);
         if ($formatter) {
             /**
@@ -531,14 +552,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
              * before then passing it through htmlspecialchars() to encode angle brackets and quotes. If this is not
              * done then some characters with diacritic marks remain as html entities in the code.
              */
-            $content = html_entity_decode($content, ENT_COMPAT, 'UTF-8');
-            $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
-            $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $content);
+            $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
+            $content = $this->sanitizeString($unsafe_content);
             $transformation_applied = sprintf(__("Prepared using the %s formatter."), $formatter_info['type']) . " [$ext]";
         } else {
             /**
              * Display verbatim. Need to prevent possible XSS vectors here so it is all escaped...
              */
+            $content = html_entity_decode($unsafe_content, ENT_COMPAT, 'UTF-8');
             $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
             $content = "<pre>$content</pre>";
 
@@ -561,16 +582,17 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     /**
-     * TODO Only apply this stylesheet once on the admin page we are injecting into.
      */
     static function getEmbeddedStyles() {
         $value = <<<CSS
 <style>
 .module-release-notes {overflow-x:overlay;padding-bottom:1em}
-.module-release-notes h1 {margin-top:1em !important; font-size:1.5em}
-.module-release-notes h2 {margin-top: 1em}
+.module-release-notes h1 {margin-top:1em !important; font-size:1.5em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
+.module-release-notes h2 {margin-top:1em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
 .module-release-notes li {margin:0}
 .module-release-notes ul {margin-bottom:2em}
+.module-release-notes strong {font-weight:700}
+.module-release-notes em {font-style:italic}
 </style>
 CSS;
 
@@ -625,6 +647,15 @@ CSS;
         $f->notes = __("Minimum 2, Maximum 30");
         $f->attr('value', $data['fallbackCommitHistory']);
         $fields->add($f);
+
+        $f = $modules->get('InputfieldRadios');
+        $f->attr('name', 'openSettings');
+        $f->label = __('Open the "Support Files" section of the module information page automatically');
+        $f->addOption(0, __('No, keep it collapsed.'));
+        $f->addOption(1, __('Yes, show me the support files.'));
+        $f->attr('value', $data['openSettings']);
+        $fields->add($f);
+
 
         return $fields;
     }
