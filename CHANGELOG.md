@@ -1,3 +1,7 @@
+## 0.3.3 2017-11-14
+- Add utf8-aware wordwrap function.
+- Add config option to control wrap column for plaintext.
+
 ## 0.3.2 2017-11-14
 - Add MIT license.
 
