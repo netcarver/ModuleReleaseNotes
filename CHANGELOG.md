@@ -1,3 +1,6 @@
+## 0.3.1 2017-11-14
+- Add example README files for XSS injection, language characters and code display.
+
 ## 0.3.0 2017-11-14
 - Fix issue with multiple declaration of Markdown parser.
 - Unify formatting and sanitization of texts.
