@@ -152,7 +152,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $message   = $this->sanitizeString($commit['commit']['message']);
                 $message   = $this->utf8_wordwrap($message);
                 $sig       = $this->formatCommitMetaData($commit, $info);
-                $entry     = "<li>$sig<br><pre>$message</pre></li>";
+                $entry     = "<li class='commit'><span class='sig'>$sig</span><br><pre>$message</pre></li>";
                 $history[] = $entry;
             }
             $history   = implode("", $history);
@@ -250,7 +250,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $message   = $this->sanitizeString($commit['commit']['message']);
                 $message   = $this->utf8_wordwrap($message);
                 $sig       = $this->formatCommitMetaData($commit, $info);
-                $entry     = "<li>$sig<br><pre>$message</pre></li>";
+                $entry     = "<li class='commit'><span class='sig'>$sig</span><br><pre>$message</pre></li>";
                 $history[] = $entry;
             }
             $history   = implode("", $history);
@@ -315,7 +315,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $wrapper->label = __("What's Changed?");
 
             $release_notes  = $release_notes_default  = __('Not Available - Github Release Not Found');
-            $tagged_log     = $tagged_log_default     = __('Not Available - Git Tags Missing');
+            $tagged_log     = $tagged_log_default     = __('Not Available - One or More Git Tags Missing');
             $changelog_file = $changelog_file_default = __('Not Available - File Missing');
             $latest_commits = $latest_commits_default = __('Comming Soon!');
 
@@ -358,7 +358,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->notes  = $fmt_note;
             } else {
                 $field->label = __("No Official Release Notes for $new_version.");
-                $field->notes = __('To add official release notes, please start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. You will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) your code as you push new versions in order to use this feature.');
+                $field->notes = __('To add official release notes, please ask the module author to start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. They will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) the code as they push new versions in order to use this feature.');
                 if ($has_changelog_file || $has_tagged_log) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
@@ -373,7 +373,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $field->label = __("Detailed Commit History - from $current_version to $new_version");
                 } else {
                     $field->label = __("No Detailed Commit History Available");
-                    $field->notes = __('Even if you don\'t use Github Releases, you can start to show code changes between versions if you start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments your module version. Your tags **must** match your version numbering scheme for this feature to work - don\'t tag "v1.0.1" if your version in PW is ```101``` or ```"1.0.1"```.');
+                    $field->notes = __('Even if the author doesn\'t use Github Releases (perhaps they are using Bitbucket or Gitlab), they can start to show code changes between versions if they start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments the module version. The tags **must** match the version numbering scheme used by the module for this feature to work.');
                     if ($has_changelog_file) {
                         $field->collapsed = Inputfield::collapsedYes;
                     }
@@ -396,11 +396,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $changelog_file = "<div class='module-release-notes'>$changelog_file</div>";
                 } else {
                     $field->label   = __("No Changelog from version $new_version");
-                    $field->notes   = __('If you do not want to tag versions or cut releases, then please consider adding (and maintaining) a ```CHANGELOG.md``` file in the root of your module repository. If you do, it will show up here. If you already use the releases feature, or tag your versions, this is not necessary.');
+                    $field->notes   = __('If the author does not want to tag versions or cut releases, then they could consider adding (and maintaining) a ```CHANGELOG``` file in the root of the module repository. If they do, it will show up here. If they already use the releases feature, or tag module versions, this is not necessary and can lead to duplicated effort.');
                 }
                 if ($has_release_notes) {
                     $field->collapsed = Inputfield::collapsedYes;
-                    $field->notes    .= __('You are already using the Releases feature and may be duplicating effort maintaining a ```CHANGELOG.md``` file as well. Perhaps it\'s time to remove the changelog file from your repository?');
                 }
                 $field->value = $changelog_file;
                 $wrapper->add($field);
@@ -415,7 +414,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->name = 'commit-log';
                 $field->label = $this->data['fallbackCommitHistory'] . ' ' . __("Most Recent Commits");
                 if (!$has_latest_commits) {
-                    $field->notes = __('Please consider adding support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging your commits when you go to a new version is better still, as it allows automatic diffing between versions. The best option is to start using the Github Releases feature.');
+                    $field->notes = __('Please ask the author to add support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging git commits at each new version is better still, as it allows automatic diffing between versions. If on Github, using the Releases feature is a nice step up.');
                 }
                 $field->value = "<div class='module-release-notes'>$latest_commits</div>";
                 $wrapper->add($field);
@@ -538,11 +537,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * UTF-8 wordwrapping function.
      *
      * Source: http://php.net/manual/en/function.wordwrap.php#107570
-     * minor edit to correct variable name in else clause.
+     * minor edit to correct variable $search name in else clause.
      */
     protected function utf8_wordwrap($string, $break="\n", $cut=false) {
         $width = $this->wordWrapColumn;
-\TD::barDump("Width [$width]");
         if($cut) {
             // Match anything 1 to $width chars long followed by whitespace or EOS,
             // otherwise match anything $width chars long
@@ -618,6 +616,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 .module-release-notes ul {margin-bottom:2em}
 .module-release-notes strong {font-weight:700}
 .module-release-notes em {font-style:italic}
+.module-release-notes span.sig {font-family:monospace}
+.module-release-notes li.commit {padding-bottom:1em}
 </style>
 CSS;
 
