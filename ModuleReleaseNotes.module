@@ -53,6 +53,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return array(
             'fallbackCommitHistory' => 12,
             'openSettings'          => 0,
+            'wordWrapColumn'        => 95,
         );
     }
 
@@ -149,7 +150,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $commits = $tmp_result['commits'];
             foreach ($commits as $commit) {
                 $message   = $this->sanitizeString($commit['commit']['message']);
-                $message   = wordwrap($message);
+                $message   = $this->utf8_wordwrap($message);
                 $sig       = $this->formatCommitMetaData($commit, $info);
                 $entry     = "<li>$sig<br><pre>$message</pre></li>";
                 $history[] = $entry;
@@ -247,7 +248,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $commits = array_slice($result, 0, $this->data['fallbackCommitHistory']);
             foreach ($commits as $commit) {
                 $message   = $this->sanitizeString($commit['commit']['message']);
-                $message   = wordwrap($message);
+                $message   = $this->utf8_wordwrap($message);
                 $sig       = $this->formatCommitMetaData($commit, $info);
                 $entry     = "<li>$sig<br><pre>$message</pre></li>";
                 $history[] = $entry;
@@ -533,6 +534,31 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * UTF-8 wordwrapping function.
+     *
+     * Source: http://php.net/manual/en/function.wordwrap.php#107570
+     * minor edit to correct variable name in else clause.
+     */
+    protected function utf8_wordwrap($string, $break="\n", $cut=false) {
+        $width = $this->wordWrapColumn;
+\TD::barDump("Width [$width]");
+        if($cut) {
+            // Match anything 1 to $width chars long followed by whitespace or EOS,
+            // otherwise match anything $width chars long
+            $search  = '/(.{1,'.$width.'})(?:\s|$)|(.{'.$width.'})/uS';
+            $replace = '$1$2'.$break;
+        } else {
+            // Anchor the beginning of the pattern with a lookahead
+            // to avoid crazy backtracking when words are longer than $width
+            $search  = '/(?=\s)(.{1,'.$width.'})(?:\s|$)/uS';
+            $replace = '$1'.$break;
+        }
+        return preg_replace($search, $replace, $string);
+    }
+
+
+
 
     /**
      * Tries to apply an appropriate textformatter to a given content string.
@@ -559,6 +585,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
              */
             $content = html_entity_decode($unsafe_content, ENT_COMPAT, 'UTF-8');
             $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
+            $content = $this->utf8_wordwrap($content);
             $content = "<pre>$content</pre>";
 
             if ($formatter_info) {
@@ -644,6 +671,17 @@ CSS;
         $f->min = 2;
         $f->notes = __("Minimum 2, Maximum 30");
         $f->attr('value', $data['fallbackCommitHistory']);
+        $fields->add($f);
+
+        $f = $modules->get('InputfieldInteger');
+        $f->attr('name', 'wordWrapColumn');
+        $f->attr('inputType', 'number');
+        $f->attr('type', 'number');
+        $f->label = __('Wrap text files at which column position?');
+        $f->max = 300;
+        $f->min = 40;
+        $f->notes = __("Minimum 40, Maximum 300");
+        $f->attr('value', $data['wordWrapColumn']);
         $fields->add($f);
 
         $f = $modules->get('InputfieldRadios');
