@@ -31,7 +31,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     public static function getModuleInfo() {
-        return array(
+        return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
             'version'   => '0.3.3',
@@ -39,10 +39,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'autoload'  => 'template=admin',
             'singular'  => true,
             'permanent' => false,
-            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.3.8',
+            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.4.0',
             'installs'  => 'TextformatterParsedownExtraPlugin',
             'icon'      => 'code-fork'
-        );
+        ];
     }
 
 
@@ -50,11 +50,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      *
      */
     static public function getDefaultConfig() {
-        return array(
+        return [
             'fallbackCommitHistory' => 12,
             'openSettings'          => 0,
             'wordWrapColumn'        => 95,
-        );
+        ];
     }
 
 
@@ -64,9 +64,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * Anything not matching the list here (or if the formatter fails to be loaded) will be escaped and output
      * 'verbatim'.
      */
-    static $formatters = array(
-        'md'      => array('type' => 'Markdown', 'use' => 'TextformatterParsedownExtraPlugin'),
-    );
+    static $formatters = [
+        'md' => ['type' => 'Markdown', 'use' => 'TextformatterParsedownExtraPlugin'],
+    ];
 
 
     /**
@@ -146,7 +146,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $this->recordRemainingReads($http);
         $code = $http->getHttpCode();
         if(200 == $code && !empty($tmp_result['commits'])) {
-            $history = array();
+            $history = [];
             $commits = $tmp_result['commits'];
             foreach ($commits as $commit) {
                 $message   = $this->sanitizeString($commit['commit']['message']);
@@ -187,31 +187,31 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      */
     public function remoteHostInfo($remote) {
         if (false !== stripos($remote, '://github.com')) {
-            return array(
+            return [
                 'host' => 'Github',
                 'link' => $remote,
                 'icon' => '<i class="fa fa-icon fa-github"></i>',
-            );
+            ];
         } else if (false !== stripos($remote, '://bitbucket.org')) {
-            return array(
+            return [
                 'host' => 'BitBucket',
                 'link' => $remote,
                 'icon' => '<i class="fa fa-icon fa-bitbucket"></i>'
-            );
+            ];
         } else if (false !== stripos($remote, '://gitlab.com')) {
-            return array(
+            return [
                 'host' => 'GitLab',
                 'link' => $remote,
                 'icon' => '<i class="fa fa-icon fa-gitlab"></i>'
-            );
+            ];
         }
 
         // Use a generic git icon...
-        return array(
+        return [
             'host' => 'Unknown',
             'link' => $remote,
             'icon' => '<i class="fa fa-icon fa-git"></i>',
-        );
+        ];
     }
 
 
@@ -222,11 +222,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     protected function recordRemainingReads($http) {
         $headers = $http->getResponseHeaders();
         if (isset($headers['x-ratelimit-remaining'])) {
-            $this->github_remaining_reads = array(
+            $this->github_remaining_reads = [
                 'limit'     => $headers['x-ratelimit-limit'],
                 'remaining' => $headers['x-ratelimit-remaining'],
                 'reset'     => $headers['x-ratelimit-reset'],
-            );
+            ];
         }
     }
 
@@ -244,7 +244,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $this->recordRemainingReads($http);
         $code = $http->getHttpCode();
         if(200 == $code && !empty($result)) {
-            $history = array();
+            $history = [];
             $commits = array_slice($result, 0, $this->data['fallbackCommitHistory']);
             foreach ($commits as $commit) {
                 $message   = $this->sanitizeString($commit['commit']['message']);
