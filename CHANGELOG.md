@@ -1,3 +1,8 @@
+## 0.5.1 2017-11-15
+- Pull JS and CSS out in to their own files.
+- Improve the jquery.
+- Shorten wrapping class name.
+
 ## 0.5.0 2017-11-15
 - Add breaking change string detection.
 - Make the old part of the update changelog expandable.
