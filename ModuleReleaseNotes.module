@@ -36,7 +36,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'autoload'  => 'template=admin',
             'singular'  => true,
             'permanent' => false,
-            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.4.0',
+            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.4.0, TextformatterParsedownExtraPlugin>=1.0.0',
             'installs'  => 'TextformatterParsedownExtraPlugin',
             'icon'      => 'code-fork',
         ];
