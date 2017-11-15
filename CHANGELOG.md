@@ -1,3 +1,7 @@
+## 0.5.0 2017-11-15
+- Add breaking change string detection.
+- Make the old part of the update changelog expandable.
+
 ## 0.4.0 2017-11-15
 - Highlight the current and latest versions in display of update changelog.
   This allows reader to focus on the changes.
