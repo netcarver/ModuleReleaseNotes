@@ -266,13 +266,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         if (!$this->user->isLoggedin() || !$this->user->hasPermission('module-admin')) return;
 
         /**
-         * Inject common stylesheet into download confirm page
-         */
-        $this->addHookAfter("ProcessModule::execute", function($event) {
-            $event->return = self::getEmbeddedStyles() . $event->return;
-        });
-
-        /**
          * Add Release notes and/or a list of commits between tags and/or the latest changelog and/or the latest
          * commit messages to the download confirmation form.
          */
@@ -352,7 +345,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $field->name = 'release-notes';
             if ($has_release_notes) {
                 $field->label  = __("Official Release Notes for $new_version.");
-                $release_notes = "<div class='module-release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
+                $release_notes = "<div class='release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
                 if ($this->config->debug) $field->notes = $fmt_note;
             } else {
                 $field->label = __("No Official Release Notes for $new_version.");
@@ -379,7 +372,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if ($has_release_notes) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
-                $field->value = "<div class='module-release-notes'>$tagged_log</div>";
+                $field->value = "<div class='release-notes'>$tagged_log</div>";
                 $wrapper->add($field);
             }
 
@@ -393,7 +386,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file);
                     $changelog_file = $this->highlightChangelogBetweenVersions($changelog_file, $current_version, $new_version);
                     if ($this->config->debug) $field->notes = $fmt_note;
-                    $changelog_file = "<div class='module-release-notes'>$changelog_file</div>";
+                    $changelog_file = "<div class='release-notes'>$changelog_file</div>";
                 } else {
                     $field->label   = __("No Changelog from version $new_version");
                     $field->notes   = __('If the author does not want to tag versions or cut releases, then they could consider adding (and maintaining) a ```CHANGELOG``` file in the root of the module repository. If they do, it will show up here. If they already use the releases feature, or tag module versions, this is not necessary and can lead to duplicated effort.');
@@ -416,7 +409,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if (!$has_latest_commits) {
                     $field->notes = __('Please ask the author to add support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging git commits at each new version is better still, as it allows automatic diffing between versions. If on Github, using the Releases feature is a nice step up.');
                 }
-                $field->value = "<div class='module-release-notes'>$latest_commits</div>";
+                $field->value = "<div class='release-notes'>$latest_commits</div>";
                 $wrapper->add($field);
             }
 
@@ -464,8 +457,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             if ($append_info) {
                 $outer_wrapper->add($wrapper);
                 $module_page   = $event->return;
-                $styles        = self::getEmbeddedStyles();
-                $event->return = $styles. $outer_wrapper->render() . $module_page;
+                $event->return = $outer_wrapper->render() . $module_page;
             }
         });
     }
@@ -664,42 +656,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         }
 
         // Rebuild the changelog with the divisions in place...
-        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='old-changes'>$oldstuff</div><p class='old-vis-control'><a onclick='$(\".old-changes\").attr(\"style\", \"height:100%\");$(\"p.old-vis-control\").hide()'>Show More</a></p>";
+        $grow_label = __('Show More');
+        $all_label  = __('Show All (can lead to a long page)');
+        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='expansion-wrapper'><div class='old-changes expand'>$oldstuff</div><p><a class='cursor-pointer grow-height'>$grow_label</a></p></div>";
         return $changelog;
-    }
-
-
-    /**
-     */
-    static function getEmbeddedStyles() {
-        $value = <<<CSS
-<style>
-.module-release-notes {max-width:100%}
-.module-release-notes h1 {margin-top:1em !important; font-size:1.5em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
-.module-release-notes h2 {margin-top:1em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
-.module-release-notes ol {margin-bottom:1em;padding-left:2em}
-.module-release-notes ul {margin-bottom:1em;list-style-type:disc;padding-left:2em}
-.module-release-notes ul ul {list-style-type:circle}
-.module-release-notes li {margin:0;display:list-item}
-.module-release-notes strong {font-weight:700}
-.module-release-notes em {font-style:italic}
-.module-release-notes span.sig {font-family:monospace}
-.module-release-notes span.high-version    {background-color:#cccc66;padding:5px;border-radius:5px}
-.module-release-notes span.low-version     {background-color:#66dd66;padding:5px;border-radius:5px}
-.module-release-notes span.breaking-change {background-color:#dd6666;padding:5px;border-radius:5px}
-.module-release-notes div.breaking-change  {background-color:#f8c8c8 !important}
-.module-release-notes span.annotation      {font-size:small;font-family:monospace}
-.module-release-notes div.new-changes      {background-color:#fcfccc;padding:.02em .5em;border-radius:10px;margin-top:.25em}
-.module-release-notes div.old-changes      {height:4em;overflow:hidden;max-height:100%}
-.module-release-notes ul.commits{padding-left:0;list-style-type:none}
-.module-release-notes li.commit {padding-bottom:1em;display:block}
-.module-release-notes blockquote {padding:0 1em;color:#6a737d;border-left:0.25em solid #dfe2e5}
-.module-release-notes pre {overflow-x:auto;background-color:#fcfcfc;word-wrap:normal;padding:0 1em;border-radius:5px}
-.module-release-notes p code, .module-release-notes li code {background-color:#f3f3f3;border-radius:5px;padding:2px 10px}
-</style>
-CSS;
-
-        return $value;
     }
 
 
@@ -708,7 +668,7 @@ CSS;
      * Builds a markup input field to contain the given information.
      */
     static function wrapValueInField($name, $value, $label, $icon, $notes) {
-        $value = "<div class='module-release-notes'>$value</div>";
+        $value = "<div class='release-notes'>$value</div>";
         $f = wire('modules')->get('InputfieldMarkup');
         $f->name = $name;
         $f->label = $label;
