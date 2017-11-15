@@ -656,8 +656,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         }
 
         // Rebuild the changelog with the divisions in place...
-        $show_label = __('Show Remaining');
-        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='old-changes'>$oldstuff</div><p class='old-vis-control'><a class='cursor-pointer' onclick='$(\".old-changes\").attr(\"style\", \"height:100%\");$(\"p.old-vis-control\").hide()'>$show_label</a></p>";
+        $grow_label = __('Show More');
+        $all_label  = __('Show All (can lead to a long page)');
+        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='expansion-wrapper'><div class='old-changes expand'>$oldstuff</div><p><a class='cursor-pointer grow-height'>$grow_label</a></p></div>";
         return $changelog;
     }
 
