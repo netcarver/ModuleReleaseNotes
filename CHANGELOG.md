@@ -1,3 +1,11 @@
+## 0.4.0 2017-11-15
+- Highlight the current and latest versions in display of update changelog.
+  This allows reader to focus on the changes.
+- Only show Github read counter and format-chain when site in debug mode.
+- Remove language-testing readme files - I can't verify the content is appropriate.
+- Internal refactoring.
+- Improve changelog, commit list and readme styles.
+
 ## 0.3.3 2017-11-14
 - Add utf8-aware wordwrap function.
 - Add config option to control wrap column for plaintext.
