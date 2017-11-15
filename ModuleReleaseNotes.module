@@ -667,7 +667,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         }
 
         // Rebuild the changelog with the divisions in place...
-        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='old-changes'>$oldstuff</div>";
+        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='old-changes'>$oldstuff</div><p class='old-vis-control'><a onclick='$(\".old-changes\").attr(\"style\", \"height:100%\");$(\"p.old-vis-control\").hide()'>Show More</a></p>";
         return $changelog;
     }
 
@@ -693,7 +693,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 .module-release-notes div.breaking-change  {background-color:#f8c8c8 !important}
 .module-release-notes span.annotation      {font-size:small;font-family:monospace}
 .module-release-notes div.new-changes      {background-color:#fcfccc;padding:.02em .5em;border-radius:10px;margin-top:.25em}
-.module-release-notes div.old-changes      {height:4em;overflow:hidden}
+.module-release-notes div.old-changes      {height:4em;overflow:hidden;max-height:100%}
 .module-release-notes ul.commits{padding-left:0;list-style-type:none}
 .module-release-notes li.commit {padding-bottom:1em;display:block}
 .module-release-notes blockquote {padding:0 1em;color:#6a737d;border-left:0.25em solid #dfe2e5}
