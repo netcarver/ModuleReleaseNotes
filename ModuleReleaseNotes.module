@@ -10,14 +10,11 @@
  *
  * TODO
  * ----
- * Fix scrolling on long entries.
- *
  * Add caching to help circumvent hitting hosting service API rate limits
  * Add support for Gitlab hosted repositories via repo-host abstraction
  * Add support for BitBucket hosted repositories via repo-host abstraction
  * Move support for GitHub into repo-host abstraction
  * Add public data-access API for other modules to use
- * Add highlighting of breaking changes.
  *
  * Known Issues
  * ------------
@@ -34,7 +31,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.4.0',
+            'version'   => '0.5.0',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,
