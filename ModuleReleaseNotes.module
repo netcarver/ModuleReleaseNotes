@@ -354,9 +354,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'tagged-log';
                 if ($has_tagged_log) {
-                    $field->label = sprintf(__("Detailed Commit History - from version %s to %s"), $current_version, $new_version);
+                    $field->label = sprintf(__("Tag-to-Tag Commit History - from version %s to %s"), $current_version, $new_version);
                 } else {
-                    $field->label = __("No Detailed Commit History Available");
+                    $field->label = __("No Tag-to-Tag Commit History Available");
                     $field->notes = __('Even if the author doesn\'t use Github Releases (perhaps they are using Bitbucket or Gitlab), they can start to show code changes between versions if they start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments the module version. The tags **must** match the version numbering scheme used by the module for this feature to work.');
                     if ($has_changelog_file) {
                         $field->collapsed = Inputfield::collapsedYes;
