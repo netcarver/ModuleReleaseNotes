@@ -321,7 +321,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 // TODO Handle non 200 return codes, or empty body!
                 // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
                 // user
-                $release_notes = $this->formatTextOfType('md', $tmp_release_notes['body'], $fmt_note);
+                $release_notes_newtype = 'txt';
+                $release_notes = $this->formatTextOfType('md', $tmp_release_notes['body'], $fmt_note, $release_notes_newtype);
                 $release_link  = "$remote/releases/tag/$new_version";
             }
             $has_release_notes = $release_notes != $release_notes_default;
@@ -382,11 +383,13 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->name = 'changelog';
                 if ($has_changelog_file) {
                     $field->label   = __("Changelog from version $new_version");
-                    $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note);
-                    $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file);
-                    $changelog_file = $this->highlightChangelogBetweenVersions($changelog_file, $current_version, $new_version);
-                    if ($this->config->debug) $field->notes = $fmt_note;
+                    $changelog_newtype = 'txt';
+                    $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note, $changelog_newtype);
+/* \TD::barDump("New changelog type [$changelog_newtype]"); */
+                    $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file, $changelog_newtype);
+                    $changelog_file = $this->highlightLowAndHighVersions($changelog_file, $current_version, $new_version);
                     $changelog_file = "<div class='release-notes'>$changelog_file</div>";
+                    if ($this->config->debug) $field->notes = $fmt_note;
                 } else {
                     $field->label   = __("No Changelog from version $new_version");
                     $field->notes   = __('If the author does not want to tag versions or cut releases, then they could consider adding (and maintaining) a ```CHANGELOG``` file in the root of the module repository. If they do, it will show up here. If they already use the releases feature, or tag module versions, this is not necessary and can lead to duplicated effort.');
@@ -445,14 +448,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $wrapper = $this->modules->get('InputfieldFieldset');
             $wrapper->name  = 'changes-wrapper';
             $wrapper->label = __("Support Files");
-            $wrapper->icon  = 'file-text-o';
+            $wrapper->icon  = 'book';
             $wrapper->collapsed = $this->data['openSettings'] ? Inputfield::collapsedNo : Inputfield::collapsedYes;
 
             $dir = dirname(realpath($info['file']));
 
-            $append_info |= $this->addSupportFiles('readme',    'book',          $wrapper, $dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
+            $append_info |= $this->addSupportFiles('readme',    'file-text-o',   $wrapper, $dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
             $append_info |= $this->addSupportFiles('changelog', 'tags',          $wrapper, $dir.DIRECTORY_SEPARATOR."[Cc][Hh][Aa][Nn][Gg][Ee][Ll][Oo][Gg]*");
-            $append_info |= $this->addSupportFiles('readme',    'balance-scale', $wrapper, $dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
+            $append_info |= $this->addSupportFiles('license',   'balance-scale', $wrapper, $dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
 
             if ($append_info) {
                 $outer_wrapper->add($wrapper);
@@ -471,7 +474,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $append_info = false;
         $files = glob($glob_regex);
         foreach ($files as $filename) {
-            $content = $this->getFormattedTextFromFile($filename, $formatting_notes);
+            $newtype = 'txt';
+            $content = $this->getFormattedTextFromFile($filename, $formatting_notes, $newtype);
             if (!$content) continue;
             $basename = basename($filename);
             if (!$this->config->debug) $formatting_notes = '';
@@ -507,7 +511,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     /**
      * Given a filename, tries to read and format the content with an appropriate textformatter.
      */
-    public function getFormattedTextFromFile($filename, &$transformation_applied) {
+    public function getFormattedTextFromFile($filename, &$transformation_applied, &$newtype) {
         $transformation_applied = __('None');
         if (!is_file($filename) || !is_readable($filename)) return false;
         // Which extension is the file using?
@@ -515,7 +519,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         if (empty($ext)) $ext = 'txt';
         $content = file_get_contents($filename);
         if (false !== $content && !empty(trim($content))) {
-            return $this->formatTextOfType($ext, $content, $transformation_applied);
+            $tmpval  = $newtype;
+            $tmp     = $this->formatTextOfType($ext, $content, $transformation_applied, $tmpval);
+            $tmp     = self::addExpansionWrapper($tmp, __('Show All'), 'long', 'full-height');
+            $newtype = $tmpval;
+            return $tmp;
         }
         return false;
     }
@@ -552,7 +560,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      *
      * It also records which formatter was applied.
      */
-    protected function formatTextOfType($ext, $unsafe_content, &$transformation_applied) {
+    protected function formatTextOfType($ext, $unsafe_content, &$transformation_applied, &$newtype) {
         $transforms = [];
         $reason     = '';
         $formatter  = self::getFormatterForFiletype($ext, $formatter_info);
@@ -564,12 +572,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $transforms[] = $formatter_info['type'];
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = 'HTML Purifier';
+            $newtype = 'html';
         } elseif ($formatter_info && $ext == 'md') {
             // fallback to the internal Markdown sanitiser
             $unsafe_content = $this->sanitizer->entitiesMarkdown($unsafe_content, true);
             $transforms[] = 'entitiesMarkdown';
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = 'HTML Purifier';
+            $newtype = 'html';
         } else {
             /**
              * Display verbatim. Need to prevent possible XSS vectors here so it is all escaped...
@@ -595,6 +605,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $formatter_info['type'],
                     $formatter_info['use']
                 );
+                $newtype = strtolower($formatter_info['type']);
             }
         }
         $transforms = implode(' &rarr; ', $transforms);
@@ -609,7 +620,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      *
      * When applied to the current and latest version numbers, allows easy visual identification of applicable changes.
      */
-    protected function highlightChangelogBetweenVersions($log, $low_version, $high_version=false, $str_low=false, $str_high=false) {
+    protected function highlightLowAndHighVersions($log, $low_version, $high_version=false, $str_low=false, $str_high=false) {
         if (false === $str_high) $str_high = __("Latest ");
         if (false === $str_low)  $str_low  = __("Current ");
         if (false !== $high_version) {
@@ -635,39 +646,74 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return $changes;
     }
 
+    static $cut_regexes = [
+        'html'     => [
+            'heading' => '(<h1>[^<]*</h1>)',
+            'version' => '(<h[2-3][^>]*>%s)',
+        ],
+        'markdown' => [
+            'heading' => '^(<pre># .*)$',
+            'version' => '^(#{2,3} %s)',
+        ],
+    ];
 
-    protected function insertMarkerForVersion($version, $changelog) {
+    protected function insertMarkerForVersion($version, $changelog, $type) {
         // Slice off, and preserve any h1 element.
-        $top_knife = '</h1>';
         $pre       = '';
-        $parts     = explode($top_knife, $changelog);
-        if (count($parts) > 1) {
-            $pre = array_shift($parts).$top_knife;
-            $changelog = implode($top_knife, $parts);
+        $new_class = '';
+        $newstuff  = '';
+        $top_knife = @self::$cut_regexes[$type]['heading'];
+        if (!empty($top_knife)) {
+            $top_knife = "~$top_knife~imU";
+/* \TD::barDump("Top knife $top_knife"); */
+            $parts     = preg_split($top_knife, $changelog, 3, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+/* \TD::barDump($parts); */
+            if (count($parts) > 1) {
+/* \TD::barDump("Cutting out H1 for later prepend."); */
+                $pre = array_shift($parts);
+                $changelog = trim(implode('', $parts));
+            }
         }
 
 
         // Divide the remaining document into the new and old portions. Classes on the divs are used to control
         // the display of the result.
-        $version   = preg_quote($version);
-        $entries   = preg_split("~(<h[2-3][^>]*>$version)~i", $changelog, -1, PREG_SPLIT_DELIM_CAPTURE);
-        $newstuff  = array_shift($entries);
-        $oldstuff  = implode('', $entries);
+        $regex     = @self::$cut_regexes[$type]['version'];
+        if (!empty($regex)) {
+            $regex     = sprintf($regex, preg_quote($version));
+/* \TD::barDump("Version Regex [$regex]"); */
+            $entries   = preg_split("~$regex~imU", $changelog, -1, PREG_SPLIT_DELIM_CAPTURE);
+/* \TD::barDump($entries); */
+            $newstuff  = array_shift($entries);
+            $oldstuff  = implode('', $entries);
 
-        $new_class = 'new-changes';
-        $has_breaking_change = false;
-        $newstuff = $this->highlightBreakingChanges($newstuff, $has_breaking_change);
-        if ($has_breaking_change) {
-            $new_class .= ' breaking-change';
+            $new_class = 'new-changes';
+            $has_breaking_change = false;
+            $newstuff = $this->highlightBreakingChanges($newstuff, $has_breaking_change);
+            if ($has_breaking_change) {
+                $new_class .= ' breaking-change';
+            }
+            $newstuff   = "<div class='$new_class'>$newstuff</div>";
+            $wrap_class = 'old-changes';
+        } else {
+            $oldstuff   = $changelog;
+            $wrap_class = 'all-changes';
         }
 
         // Rebuild the changelog with the divisions in place...
         $grow_label = __('Show More');
-        $all_label  = __('Show All (can lead to a long page)');
-        $changelog = "$pre<div class='$new_class'>$newstuff</div><div class='expansion-wrapper'><div class='old-changes expand'>$oldstuff</div><p><a class='cursor-pointer grow-height'>$grow_label</a></p></div>";
+        $oldstuff   = self::addExpansionWrapper($oldstuff, $grow_label, $wrap_class);
+        $changelog  = "$pre$newstuff$oldstuff";
         return $changelog;
     }
 
+
+    /**
+     * Wrap the given content with a height-limiting wrapper and provide a link that expands it when clicked.
+     */
+    static function addExpansionWrapper($content, $label, $expand_class='', $link_class='grow-height') {
+        return "<div class='expansion-wrapper'><div class='$expand_class expand'>$content</div><p><a class='cursor-pointer $link_class'>$label</a></p></div>";
+    }
 
 
     /**
