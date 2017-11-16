@@ -11,7 +11,7 @@
 .release-notes span.high-version    {background-color:#cccc66;padding:5px;border-radius:5px}
 .release-notes span.low-version     {background-color:#66dd66;padding:5px;border-radius:5px}
 .release-notes span.breaking-change {background-color:#dd6666;padding:5px;border-radius:5px}
-.release-notes div.breaking-change  {background-color:#f8c8c8 !important}
+.release-notes div.breaking-change  {background-color:#ffdddd !important}
 .release-notes span.annotation      {font-size:small;font-family:monospace}
 .release-notes div.new-changes      {background-color:#ffffdd;padding:.02em .5em;border-radius:10px;margin-top:.25em}
 .release-notes div.old-changes      {height:120px}

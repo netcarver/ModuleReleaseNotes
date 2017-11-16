@@ -385,7 +385,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $field->label   = __("Changelog from version $new_version");
                     $changelog_newtype = 'txt';
                     $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note, $changelog_newtype);
-/* \TD::barDump("New changelog type [$changelog_newtype]"); */
                     $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file, $changelog_newtype);
                     $changelog_file = $this->highlightLowAndHighVersions($changelog_file, $current_version, $new_version);
                     $changelog_file = "<div class='release-notes'>$changelog_file</div>";
@@ -665,11 +664,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $top_knife = @self::$cut_regexes[$type]['heading'];
         if (!empty($top_knife)) {
             $top_knife = "~$top_knife~imU";
-/* \TD::barDump("Top knife $top_knife"); */
             $parts     = preg_split($top_knife, $changelog, 3, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
-/* \TD::barDump($parts); */
             if (count($parts) > 1) {
-/* \TD::barDump("Cutting out H1 for later prepend."); */
                 $pre = array_shift($parts);
                 $changelog = trim(implode('', $parts));
             }
@@ -681,9 +677,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $regex     = @self::$cut_regexes[$type]['version'];
         if (!empty($regex)) {
             $regex     = sprintf($regex, preg_quote($version));
-/* \TD::barDump("Version Regex [$regex]"); */
             $entries   = preg_split("~$regex~imU", $changelog, -1, PREG_SPLIT_DELIM_CAPTURE);
-/* \TD::barDump($entries); */
             $newstuff  = array_shift($entries);
             $oldstuff  = implode('', $entries);
 
