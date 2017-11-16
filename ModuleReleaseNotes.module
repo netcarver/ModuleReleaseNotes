@@ -564,6 +564,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $transforms[] = $formatter_info['type'];
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = 'HTML Purifier';
+        } elseif ($formatter_info && $ext == 'md') {
+            // fallback to the internal Markdown sanitiser
+            $unsafe_content = $this->sanitizer->entitiesMarkdown($unsafe_content, true);
+            $transforms[] = 'entitiesMarkdown';
+            $content = $this->sanitizeString($unsafe_content);
+            $transforms[] = 'HTML Purifier';
         } else {
             /**
              * Display verbatim. Need to prevent possible XSS vectors here so it is all escaped...
