@@ -99,30 +99,28 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
     /**
      * Get githubs ReleaseNotes entry for the given module.
-     *
-     * As far as I know, this is only applicable to repos hosted at Github.
-     * TODO rework to operate in the same manner as the other getters.
      */
-    public function getReleaseNotes($info, &$http) {
+    public function getReleaseNotes($info, &$http, &$release_notes, &$fmt_note) {
         // TODO add caching (stop us from hitting API request limits
         // Look for release notes
         $remote = $info['project_url'];
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/releases/tags/{$info['module_version']}";
-        $result = $http->getJSON($url);
+        $tmp_release_notes = $http->getJSON($url);
         $this->recordRemainingReads($http);
-        return $result;
+        $code = $http->getHttpCode();
+        if(200 == $code && !empty($tmp_release_notes['body'])) {
+            // TODO Handle non 200 return codes, or empty body!
+            // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
+            // user
+            $release_notes_newtype = 'txt';
+            $release_notes = $this->formatTextOfType('md', $tmp_release_notes['body'], $fmt_note, $release_notes_newtype);
+        }
     }
 
 
     /**
      * Sanitise a string for further processing and display.
-     *
-     * If you are going to be passing the string to a ML like Markdown or Textile, you might want to do an entity_decode
-     * first to cause HTML entities to be mapped to utf-8 characters where possible. This will allow for text with
-     * diacritics/non ASCII characters to appear as they should and not as embedded HTML Entities.
-     *
-     * TODO Perhaps use some JS to clean up these from code blocks in certain divs.
      */
     public function sanitizeString($string) {
         $san = wire('sanitizer');
@@ -279,7 +277,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $remote_info     = $this->remoteHostInfo($remote);
             $repo_icon       = $remote_info['icon'];
             $remote_icon     = '<i class="fa fa-icon fa-external-link"></i>';
-            $is_github_repo  = (false !== stripos($remote, '://github.com'));
+            $is_github       = 'Github' == $remote_info['host'];
 
             // Push the current version into the $info
             $info['version_current'] = $current_version;
@@ -311,18 +309,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $latest_commits = $latest_commits_default = __('Comming Soon!');
 
             //
-            // Fetch release notes (if any)...
+            // Fetch release notes...
             //
-            // TODO Only show release notes for Github repos. BB and GL repos don't support them.
-            //
-            $tmp_release_notes = $this->getReleaseNotes($info, $http);
-            $code = $http->getHttpCode();
-            if(200 == $code && !empty($tmp_release_notes['body'])) {
-                // TODO Handle non 200 return codes, or empty body!
-                // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
-                // user
-                $release_notes_newtype = 'txt';
-                $release_notes = $this->formatTextOfType('md', $tmp_release_notes['body'], $fmt_note, $release_notes_newtype);
+            if ($changes && $is_github) {
+                $this->getReleaseNotes($info, $http, $release_notes, $fmt_note);
                 $release_link  = "$remote/releases/tag/$new_version";
             }
             $has_release_notes = $release_notes != $release_notes_default;
@@ -342,21 +332,23 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $has_changelog_file = $changelog_file != $changelog_file_default;
 
 
-            $field = $this->modules->get('InputfieldMarkup');
-            $field->name = 'release-notes';
-            if ($has_release_notes) {
-                $field->label  = __("Official Release Notes for $new_version.");
-                $release_notes = "<div class='release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
-                if ($this->config->debug) $field->notes = $fmt_note;
-            } else {
-                $field->label = __("No Official Release Notes for $new_version.");
-                $field->notes = __('To add official release notes, please ask the module author to start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. They will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) the code as they push new versions in order to use this feature.');
-                if ($has_changelog_file || $has_tagged_log) {
-                    $field->collapsed = Inputfield::collapsedYes;
+            if ($is_github && $changes) {
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'release-notes';
+                if ($has_release_notes) {
+                    $field->label  = __("Official Release Notes for $new_version.");
+                    $release_notes = "<div class='release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
+                    if ($this->config->debug) $field->notes = $fmt_note;
+                } else {
+                    $field->label = __("No Official Release Notes for $new_version.");
+                    $field->notes = __('To add official release notes, please ask the module author to start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. They will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) the code as they push new versions in order to use this feature.');
+                    if ($has_changelog_file || $has_tagged_log) {
+                        $field->collapsed = Inputfield::collapsedYes;
+                    }
                 }
+                $field->value = $release_notes;
+                $wrapper->add($field);
             }
-            $field->value = $release_notes;
-            $wrapper->add($field);
 
             if ($changes) {
                 $field = $this->modules->get('InputfieldMarkup');
@@ -645,6 +637,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return $changes;
     }
 
+
     static $cut_regexes = [
         'html'     => [
             'heading' => '(<h1>[^<]*</h1>)',
@@ -655,6 +648,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'version' => '^(#{2,3} %s)',
         ],
     ];
+
 
     protected function insertMarkerForVersion($version, $changelog, $type) {
         // Slice off, and preserve any h1 element.
