@@ -1,3 +1,7 @@
+## 0.6.1 2017-11-16
+- Improve wrapper text and collapse state.
+- Refactor internal method.
+
 ## 0.6.0 2017-11-16
 - Add height control to file content display.
 - Improve changelog division detection and marking.

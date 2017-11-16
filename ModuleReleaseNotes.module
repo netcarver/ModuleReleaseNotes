@@ -31,7 +31,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.6.0',
+            'version'   => '0.6.1',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,
