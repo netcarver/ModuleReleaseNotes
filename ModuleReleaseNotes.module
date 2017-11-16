@@ -342,9 +342,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 } else {
                     $field->label = sprintf(__("No Github Release Notes for version %s."), $new_version);
                     $field->notes = __('To add official release notes, please ask the module author to start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. They will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) the code as they push new versions in order to use this feature.');
-                    if ($has_changelog_file || $has_tagged_log) {
-                        $field->collapsed = Inputfield::collapsedYes;
-                    }
+                    $field->collapsed = Inputfield::collapsedYes;
                 }
                 $field->value = $release_notes;
                 $wrapper->add($field);
@@ -357,7 +355,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $field->label = sprintf(__("Tag-to-Tag Commit History - from version %s to %s"), $current_version, $new_version);
                 } else {
                     $field->label = __("No Tag-to-Tag Commit History Available");
-                    $field->notes = __('Even if the author doesn\'t use Github Releases (perhaps they are using Bitbucket or Gitlab), they can start to show code changes between versions if they start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments the module version. The tags **must** match the version numbering scheme used by the module for this feature to work.');
+                    $field->notes = __('If the author doesn\'t use Github Releases, they can start to show code changes between versions if they start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments the module version. **This helps the reader as it limits the listed commits to those representing changes.** The tags must match the version numbering scheme used by the module for this feature to work.');
                     if ($has_changelog_file) {
                         $field->collapsed = Inputfield::collapsedYes;
                     }
@@ -383,9 +381,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     if ($this->config->debug) $field->notes = $fmt_note;
                 } else {
                     $field->label   = sprintf(__("No Changelog from remote version %s"), $new_version);
-                    $field->notes   = __('If the author does not want to tag versions or cut releases, then they could consider adding (and maintaining) a ```CHANGELOG``` file in the root of the module repository. If they do, it will show up here. If they already use the releases feature, or tag module versions, this is not necessary and can lead to duplicated effort.');
-                }
-                if ($has_release_notes || $has_tagged_log) {
+                    $field->notes   = __('If the author does not want to tag versions or create Github Releases, then they could consider adding (and maintaining) a ```CHANGELOG``` file in the root of the module repository. If they do, it will show up here. If they already use the releases feature, or tag module versions, this is not necessary and can lead to duplicated effort.');
                     $field->collapsed = Inputfield::collapsedYes;
                 }
                 $field->value = $changelog_file;
