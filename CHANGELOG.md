@@ -1,3 +1,7 @@
+## 0.6.0 2017-11-16
+- Add height control to file content display.
+- Improve changelog division detection and marking.
+
 ## 0.5.1 2017-11-15
 - Pull JS and CSS out in to their own files.
 - Improve the jquery.
