@@ -1,3 +1,6 @@
+## 0.7.0 2017-11-17
+- New changelog marker style scheme - WIP
+
 ## 0.6.2 2017-11-17
 - Improve JS for handling long divs.
 
