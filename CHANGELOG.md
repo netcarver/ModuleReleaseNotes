@@ -1,3 +1,6 @@
+## 0.6.2 2017-11-17
+- Improve JS for handling long divs.
+
 ## 0.6.1 2017-11-16
 - Improve wrapper text and collapse state.
 - Refactor internal method.
