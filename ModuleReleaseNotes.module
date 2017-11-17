@@ -36,7 +36,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'autoload'  => 'template=admin',
             'singular'  => true,
             'permanent' => false,
-            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.4.0, TextformatterParsedownExtraPlugin>=1.0.0',
+            'requires'  => 'ProcessWire>=3.0.0, PHP>=5.4.0',
             'installs'  => 'TextformatterParsedownExtraPlugin',
             'icon'      => 'code-fork',
         ];
@@ -608,13 +608,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * When applied to the current and latest version numbers, allows easy visual identification of applicable changes.
      */
     protected function highlightLowAndHighVersions($log, $low_version, $high_version=false, $str_low=false, $str_high=false) {
-        if (false === $str_high) $str_high = __("Latest ");
-        if (false === $str_low)  $str_low  = __("Current ");
+        if (false === $str_high) $str_high = __("Latest");
+        if (false === $str_low)  $str_low  = __("Installed");
         if (false !== $high_version) {
-            //$log = str_replace($high_version, "<span class='high-version'><span class='annotation'>$str_high</span>$high_version</span>", $log);
             $log = str_replace($high_version, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span><span class='high-version'>$high_version</span>", $log);
         }
-        //$log = str_replace($low_version,  "<span class='low-version'><span class='annotation'>$str_low</span>$low_version</span>", $log);
         $log = str_replace($low_version,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span><span class='low-version'>$low_version</span>", $log);
 
         return $log;
