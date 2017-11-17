@@ -640,23 +640,38 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'version' => '(<h[2-3][^>]*>%s)',
         ],
         'markdown' => [
-            'heading' => '^(<pre># .*)$',
+            'pre'     => '<pre>',
+            'post'    => '</pre>',
+            'heading' => '^(# .*)$',
             'version' => '^(#{2,3} %s)',
         ],
     ];
 
 
     protected function insertMarkerForVersion($version, $changelog, $type) {
-        // Slice off, and preserve any h1 element.
         $pre       = '';
+        $post      = '';
+
+        // Slice off the <pre> and </pre> in case this is a raw, or unformatted MD file...
+        if (0 === stripos($changelog, '<pre>')) {
+            $pre = '<pre>';
+            $changelog = substr($changelog, 5);
+        }
+        if ('</pre>' === strtolower(substr($changelog, -6))) {
+            $post = '</pre>';
+            $changelog = substr($changelog, 0, -6);
+        }
+
         $new_class = '';
         $newstuff  = '';
+
+        // Slice off, and preserve any h1 element.
         $top_knife = @self::$cut_regexes[$type]['heading'];
         if (!empty($top_knife)) {
             $top_knife = "~$top_knife~imU";
             $parts     = preg_split($top_knife, $changelog, 3, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
             if (count($parts) > 1) {
-                $pre = array_shift($parts);
+                $pre .= array_shift($parts);
                 $changelog = trim(implode('', $parts));
             }
         }
@@ -687,7 +702,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         // Rebuild the changelog with the divisions in place...
         $grow_label = __('Show More');
         $oldstuff   = self::addExpansionWrapper($oldstuff, $grow_label, $wrap_class);
-        $changelog  = "$pre$newstuff$oldstuff";
+        $changelog  = "$pre$newstuff$oldstuff$post";
         return $changelog;
     }
 
@@ -770,7 +785,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $f->attr('name', 'openSettings');
         $f->label = __('Open the "Support Files" section of the module information page automatically');
         $f->addOption(0, __('No, keep it collapsed.'));
-        $f->addOption(1, __('Yes, show me the support files.'));
+        $f->addOption(1, __('Yes, show me a list of support files.'));
         $f->attr('value', $data['openSettings']);
         $fields->add($f);
 
