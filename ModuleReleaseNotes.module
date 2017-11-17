@@ -611,9 +611,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         if (false === $str_high) $str_high = __("Latest ");
         if (false === $str_low)  $str_low  = __("Current ");
         if (false !== $high_version) {
-            $log = str_replace($high_version, "<span class='high-version'><span class='annotation'>$str_high</span>$high_version</span>", $log);
+            //$log = str_replace($high_version, "<span class='high-version'><span class='annotation'>$str_high</span>$high_version</span>", $log);
+            $log = str_replace($high_version, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span><span class='high-version'>$high_version</span>", $log);
         }
-        $log = str_replace($low_version,  "<span class='low-version'><span class='annotation'>$str_low</span>$low_version</span>", $log);
+        //$log = str_replace($low_version,  "<span class='low-version'><span class='annotation'>$str_low</span>$low_version</span>", $log);
+        $log = str_replace($low_version,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span><span class='low-version'>$low_version</span>", $log);
 
         return $log;
     }
@@ -671,14 +673,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $newstuff  = array_shift($entries);
             $oldstuff  = implode('', $entries);
 
-            $new_class = 'new-changes';
+            $new_class = 'new-changes has-gutter';
             $has_breaking_change = false;
             $newstuff = $this->highlightBreakingChanges($newstuff, $has_breaking_change);
             if ($has_breaking_change) {
                 $new_class .= ' breaking-change';
             }
             $newstuff   = "<div class='$new_class'>$newstuff</div>";
-            $wrap_class = 'old-changes';
+            $wrap_class = 'old-changes has-gutter';
         } else {
             $oldstuff   = $changelog;
             $wrap_class = 'all-changes';
