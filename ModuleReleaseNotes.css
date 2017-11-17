@@ -8,13 +8,11 @@
 .release-notes strong {font-weight:700}
 .release-notes em {font-style:italic}
 .release-notes span.sig {font-family:monospace}
-.release-notes span.high-version    {margin-left:10px}
-.release-notes span.low-version     {margin-left:10px}
 .release-notes span.breaking-change {background-color:#d28282;padding:3px;border-radius:5px}
 .release-notes span.annotation      {font-size:x-small;font-weight:600;display:inline-block;padding:0;width:110px;border-radius:5px;font-family:monospace;text-align:center}
-.release-notes div.new-changes      {border-radius:10px;margin-top:.25em}
+.release-notes div.new-changes      {border-left: 4px solid yellow;margin-top:.25em}
 .release-notes div.new-changes h3   {padding-bottom:1px;margin-bottom:2px}
-.release-notes div.old-changes      {height:120px}
+.release-notes div.old-changes      {border-left: 4px solid transparent;height:120px}
 .release-notes div.all-changes      {height:400px}
 .release-notes div.long             {height:500px}
 .release-notes div.expand           {overflow-y:hidden}
@@ -22,10 +20,10 @@
 .release-notes ul.commits{padding-left:0;list-style-type:none}
 .release-notes li.commit {padding-bottom:1em;display:block}
 .release-notes blockquote {padding:0 1em;color:#6a737d;border-left:0.25em solid #dfe2e5}
-.release-notes pre {overflow-x:auto;background-color:#fcfcfc;word-wrap:normal;padding:0 1em;border-radius:5px}
+.release-notes pre {overflow-x:auto;background-color:#fcfcfc;word-wrap:normal;padding-right:1em}
 .release-notes p code, .release-notes li code {background-color:#f3f3f3;border-radius:5px;padding:2px 10px}
 .arrow-box {
-	position: relative;
+	position: absolute;
 	background: #88b7d5;
 	border: 2px solid #c2e1f5;
   margin-left:-121px;
@@ -78,5 +76,6 @@
 	border-left-color: #f2e262;
 }
 .has-gutter {
-  padding-left: 121px;
+  margin-left: 120px;
+  padding-left:  2px;
 }

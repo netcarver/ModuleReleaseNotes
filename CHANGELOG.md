@@ -1,3 +1,9 @@
+## 0.7.1 2017-11-17
+- Reduce changelog marker size.
+- Amend changelog marker text.
+- Remove dependency upon TextformatterParsedownExtraPlugin.
+- Remove dead lines.
+
 ## 0.7.0 2017-11-17
 - New changelog marker style scheme - WIP
 

@@ -31,7 +31,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.7.0',
+            'version'   => '0.7.1',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,
@@ -611,9 +611,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         if (false === $str_high) $str_high = __("Latest");
         if (false === $str_low)  $str_low  = __("Installed");
         if (false !== $high_version) {
-            $log = str_replace($high_version, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span><span class='high-version'>$high_version</span>", $log);
+            $log = str_replace($high_version, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span>$high_version", $log);
         }
-        $log = str_replace($low_version,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span><span class='low-version'>$low_version</span>", $log);
+        $log = str_replace($low_version,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span>$low_version", $log);
 
         return $log;
     }
