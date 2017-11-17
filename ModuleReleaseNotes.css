@@ -9,7 +9,7 @@
 .release-notes em {font-style:italic}
 .release-notes span.sig {font-family:monospace}
 .release-notes span.breaking-change {background-color:#d28282;padding:3px;border-radius:5px}
-.release-notes span.annotation      {font-size:x-small;font-weight:600;display:inline-block;padding:0;width:110px;border-radius:5px;font-family:monospace;text-align:center}
+.release-notes span.annotation      {font-size:10px;font-weight:600;display:inline-block;padding:0;width:110px;border-radius:5px;font-family:monospace;text-align:center}
 .release-notes div.new-changes      {border-left: 4px solid yellow;margin-top:.25em}
 .release-notes div.new-changes h3   {padding-bottom:1px;margin-bottom:2px}
 .release-notes div.old-changes      {border-left: 4px solid transparent;height:120px}
