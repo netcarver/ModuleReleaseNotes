@@ -1,3 +1,6 @@
+## 0.7.3 2017-11-17
+- Merge contribute style tweaks from Mike Rockett.
+
 ## 0.7.2 2017-11-17
 - Add work-around to bug in UIKit theme. This requires the demotion of the h1
   heading in embedded markdown documents to h2.was-h1. This stops the UIKit
