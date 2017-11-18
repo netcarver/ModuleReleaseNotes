@@ -80,7 +80,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     /**
      * Prepares commit meta-data for display
      */
-    public function formatCommitMetaData($commit, $info) {
+    protected function formatCommitMetaData($commit, $info) {
         $author    = $commit['commit']['author']['name'];
         $committer = $commit['commit']['committer']['name'];
         $date      = $commit['commit']['committer']['date'];
@@ -723,7 +723,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     /**
      * Wrap the given content with a height-limiting wrapper and provide a link that expands it when clicked.
      */
-    static function addExpansionWrapper($content, $label, $expand_class='', $link_class='grow-height') {
+    static protected function addExpansionWrapper($content, $label, $expand_class='', $link_class='grow-height') {
         return "<div class='expansion-wrapper'><div class='$expand_class expand'>$content</div><p><a class='cursor-pointer $link_class'>$label</a></p></div>";
     }
 
@@ -731,7 +731,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     /**
      * Builds a markup input field to contain the given information.
      */
-    static function wrapValueInField($name, $value, $label, $icon, $notes) {
+    static protected function wrapValueInField($name, $value, $label, $icon, $notes) {
         $value = "<div class='release-notes'>$value</div>";
         $f = wire('modules')->get('InputfieldMarkup');
         $f->name = $name;
