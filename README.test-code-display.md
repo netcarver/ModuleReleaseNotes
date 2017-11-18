@@ -9,8 +9,18 @@ This file includes a number of code examples that should all be displayed proper
 - ```<a href='#'><?=$this->version();?></a>```
 - ```<a href='#'><?=$this->version();?></a>```
 
-## Code Blocks
+
+## Indented Code Blocks
 
     echo <<<HTML
     <h1>Hello World</h1>
     HTML;
+
+
+## Fenced Blocks
+
+```php
+echo <<<HTML
+<h1>Hello World</h1>
+HTML;
+```
