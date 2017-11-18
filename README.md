@@ -4,11 +4,11 @@ This is an auto-loading, admin-only module for ProcessWire v3+.
 
 ## Aims
 
-1 Make discovery of a module's changes prior to an upgrade a trivial task.
-2 Make breaking changes very obvious.
-3 Make module authors start to think about how they can improve the change discovery process for their modules.
-4 Make reading of a module's support documentation post-install a trivial task.
-5 Make sure the display of information from the module support files/commit messages doesn't introduce a vulnerability.
+1. Make discovery of a module's changes prior to an upgrade a trivial task.
+2. Make breaking changes very obvious.
+3. Make module authors start to think about how they can improve the change discovery process for their modules.
+4. Make reading of a module's support documentation post-install a trivial task.
+5. Make sure the display of information from the module support files/commit messages doesn't introduce a vulnerability.
 
 
 ### Making Discovery Of Changes Easy Prior To Upgrade
@@ -57,5 +57,3 @@ through ```htmlspecialchars()``` prior to output.
 ModuleReleaseNotes needs to be able to ask remotely hosted code repositories about what's changed for a module. As most
 people push their code up to Github, that's where I started. The module knows how to talk to github using the v3 rest
 API, but it isn't a pretty picture - yet.
-
-
