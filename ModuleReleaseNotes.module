@@ -648,7 +648,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
     static $cut_regexes = [
         'html'     => [
-            'heading' => '(<h1>[^<]*</h1>)',
+            'heading' => '(<h2>[^<]*</h2>)',
             'version' => '(<h[2-3][^>]*>%s)',
         ],
         'markdown' => [
@@ -677,7 +677,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $new_class = '';
         $newstuff  = '';
 
-        // Slice off, and preserve any h1 element.
+        // Slice off, and preserve the first h2 element.
         $heading_regex = @self::$cut_regexes[$type]['heading'];
         if (!empty($heading_regex)) {
             $heading_regex = "~$heading_regex~imU";
