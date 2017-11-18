@@ -2,15 +2,16 @@
 .release-notes h1 {margin-top:1em !important; font-size:1.5em;padding-bottom:0.2em;border-bottom:1px solid #eaecef;max-width:100% !important}
 .release-notes h2 {margin-top:1em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
 .release-notes ol {margin-bottom:1em;padding-left:2em}
-.release-notes ul {margin-bottom:1em;list-style-type:disc;padding-left:2em}
+.release-notes ul {margin-bottom:1em;list-style-type:disc;padding-left:2em;margin-top:5px}
 .release-notes ul ul {list-style-type:circle}
 .release-notes li {margin:0;display:list-item}
 .release-notes strong {font-weight:700}
 .release-notes em {font-style:italic}
 .release-notes span.sig {font-family:monospace}
 .release-notes span.breaking-change {background-color:#d28282;padding:3px;border-radius:5px}
-.release-notes span.annotation      {font-size:10px;font-weight:600;display:inline-block;padding:0;width:110px;border-radius:5px;font-family:monospace;text-align:center}
-.release-notes div.new-changes      {border-left: 4px solid yellow;margin-top:.25em}
+.release-notes span.annotation      {font-size:11px;font-weight:500;display:inline-block;padding:1px;width:110px;border-radius:5px;font-family:monospace;text-align:center}
+.AdminThemeUikit .release-notes span.annotation  {font-size:12px;font-weight:400;padding:4px;}
+.release-notes div.new-changes      {border-left: 4px solid yellow;margin-top:.25em;padding-bottom:5px;margin-bottom:0}
 .release-notes div.new-changes h3   {padding-bottom:1px;margin-bottom:2px}
 .release-notes div.old-changes      {border-left: 4px solid transparent;height:120px}
 .release-notes div.all-changes      {height:400px}
