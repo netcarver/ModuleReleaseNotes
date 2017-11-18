@@ -1,3 +1,10 @@
+## 0.7.2 2017-11-17
+- Add work-around to bug in UIKit theme. This requires the demotion of the h1
+  heading in embedded markdown documents to h2.was-h1. This stops the UIKit
+  interface from collapsing the page's h1 headline.
+- Variable renaming.
+- Reduce default wordwrap to 90 characters.
+
 ## 0.7.1 2017-11-17
 - Reduce changelog marker size.
 - Amend changelog marker text.
