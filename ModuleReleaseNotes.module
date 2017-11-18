@@ -539,11 +539,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
+    /**
+     * Demotes first H1 element to an H2 element. The H1 must start at the beginning of a line.
+     */
     protected function changeH1toH2($content) {
         $regex = '^<h1([^>]*)>(.*)<\/h1>';
-\TD::barDump($content);
-        $content = preg_replace("~$regex~i", "<h2$1>$2</h2>", $content);
-\TD::barDump($content);
+        $content = preg_replace("~$regex~i", "<h2$1>$2</h2>", $content, 1);
         return $content;
     }
 
