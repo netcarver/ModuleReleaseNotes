@@ -430,13 +430,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $module_class = $this->sanitizer->name($module_class);
             $info = $this->modules->getModuleInfoVerbose($module_class);
 
-
             $outer_wrapper = new InputfieldWrapper();
             $wrapper = $this->modules->get('InputfieldFieldset');
+            $wrapper->id    = 'module-release-notes-fieldset';
             $wrapper->name  = 'changes-wrapper';
             $wrapper->label = __("Support Files");
             $wrapper->icon  = 'book';
             $wrapper->collapsed = $this->data['openSettings'] ? Inputfield::collapsedNo : Inputfield::collapsedYes;
+            $outer_wrapper->add($wrapper);
 
             $dir = dirname(realpath($info['file']));
 
@@ -445,9 +446,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $append_info |= $this->addSupportFiles('license',   'balance-scale', $wrapper, $dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
 
             if ($append_info) {
-                $outer_wrapper->add($wrapper);
-                $module_page   = $event->return;
-                $event->return = $outer_wrapper->render() . $module_page;
+                $event->return = $outer_wrapper->render() . $event->return;
             }
         });
     }
@@ -540,6 +539,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
+    protected function changeH1toH2($content) {
+        $regex = '^<h1([^>]*)>(.*)<\/h1>';
+\TD::barDump($content);
+        $content = preg_replace("~$regex~i", "<h2$1>$2</h2>", $content);
+\TD::barDump($content);
+        return $content;
+    }
+
 
     /**
      * Tries to apply an appropriate textformatter to a given content string.
@@ -559,6 +566,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $transforms[] = $formatter_info['type'];
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = 'HTML Purifier';
+            $content = $this->changeH1toH2($content);
+            $transforms[] = 'Embedded h1 to h2 demotion';
             $newtype = 'html';
         } elseif ($formatter_info && $ext == 'md') {
             // fallback to the internal Markdown sanitiser
@@ -566,6 +575,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $transforms[] = 'entitiesMarkdown';
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = 'HTML Purifier';
+            $content = $this->changeH1toH2($content);
+            $transforms[] = 'Embedded h1 to h2 demotion';
             $newtype = 'html';
         } else {
             /**
@@ -666,10 +677,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $newstuff  = '';
 
         // Slice off, and preserve any h1 element.
-        $top_knife = @self::$cut_regexes[$type]['heading'];
-        if (!empty($top_knife)) {
-            $top_knife = "~$top_knife~imU";
-            $parts     = preg_split($top_knife, $changelog, 3, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+        $heading_regex = @self::$cut_regexes[$type]['heading'];
+        if (!empty($heading_regex)) {
+            $heading_regex = "~$heading_regex~imU";
+            $parts     = preg_split($heading_regex, $changelog, 3, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
             if (count($parts) > 1) {
                 $pre .= array_shift($parts);
                 $changelog = trim(implode('', $parts));
@@ -679,10 +690,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
         // Divide the remaining document into the new and old portions. Classes on the divs are used to control
         // the display of the result.
-        $regex     = @self::$cut_regexes[$type]['version'];
-        if (!empty($regex)) {
-            $regex     = sprintf($regex, preg_quote($version));
-            $entries   = preg_split("~$regex~imU", $changelog, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $version_regex = @self::$cut_regexes[$type]['version'];
+        if (!empty($version_regex)) {
+            $version_regex = sprintf($version_regex, preg_quote($version));
+            $entries   = preg_split("~$version_regex~imU", $changelog, -1, PREG_SPLIT_DELIM_CAPTURE);
             $newstuff  = array_shift($entries);
             $oldstuff  = implode('', $entries);
 
