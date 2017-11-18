@@ -50,7 +50,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'fallbackCommitHistory' => 12,
             'openSettings'          => 0,
-            'wordWrapColumn'        => 95,
+            'wordWrapColumn'        => 90,
             'breakingPhrases'       => 'BreakingChange, Breaking Change, Breaking-Change',
         ];
     }
