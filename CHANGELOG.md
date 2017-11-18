@@ -1,3 +1,7 @@
+## 0.7.4 2017-11-17 First Public Release
+- Update readme files.
+- Make some functions protected.
+
 ## 0.7.3 2017-11-17
 - Merge contribute style tweaks from Mike Rockett.
 
