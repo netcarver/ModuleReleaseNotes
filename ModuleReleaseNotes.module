@@ -623,10 +623,15 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     protected function highlightLowAndHighVersions($log, $low_version, $high_version=false, $str_low=false, $str_high=false) {
         if (false === $str_high) $str_high = __("Latest");
         if (false === $str_low)  $str_low  = __("Installed");
+
+        $regex     = "~\b%s\b~";
+        $low_regex = sprintf($regex, preg_quote($low_version));
+
         if (false !== $high_version) {
-            $log = str_replace($high_version, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span>$high_version", $log);
+            $high_regex  = sprintf($regex, preg_quote($high_version));
+            $log = preg_replace($high_regex, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span>$high_version", $log, 1);
         }
-        $log = str_replace($low_version,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span>$low_version", $log);
+        $log = preg_replace($low_regex,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span>$low_version", $log, 1);
 
         return $log;
     }
@@ -650,13 +655,13 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     static $cut_regexes = [
         'html'     => [
             'heading' => '(<h2 class=was-h1>[^<]*</h2>)',
-            'version' => '(<h[2-3][^>]*>%s)',
+            'version' => '(<h[2-3][^>]*>%s)\b',
         ],
         'markdown' => [
             'pre'     => '<pre>',
             'post'    => '</pre>',
             'heading' => '^(# .*)$',
-            'version' => '^(#{2,3} %s)',
+            'version' => '^(#{2,3} %s)\b',
         ],
     ];
 
