@@ -9,9 +9,10 @@
 .release-notes em {font-style:italic}
 .release-notes span.sig {font-family:monospace}
 .release-notes span.breaking-change {background-color:#d28282;padding:3px;border-radius:5px}
-.release-notes span.annotation      {font-size:11px;font-weight:500;display:inline-block;padding:1px;width:110px;border-radius:5px;font-family:monospace;text-align:center}
+.release-notes span.annotation      {font-size:11px;font-weight:500;display:inline-block;padding:1px;width:100px;border-radius:5px;font-family:monospace;text-align:center}
+.release-notes span.annotation.arrow-box      {font-family:inherit;color:white;font-weight:700;font-size:13px}
 .AdminThemeUikit .release-notes span.annotation  {font-size:12px;font-weight:400;padding:4px;}
-.release-notes div.new-changes      {border-left: 4px solid yellow;margin-top:.25em;padding-bottom:5px;margin-bottom:0}
+.release-notes div.new-changes      {border-left: 2px solid #e6e6e6;margin-top:.25em;padding-bottom:5px;margin-bottom:0}
 .release-notes div.new-changes h3   {padding-bottom:1px;margin-bottom:2px}
 .release-notes div.old-changes      {border-left: 4px solid transparent;height:120px}
 .release-notes div.all-changes      {height:400px}
@@ -27,7 +28,7 @@
 	position: absolute;
 	background: #88b7d5;
 	border: 2px solid #c2e1f5;
-  margin-left:-121px;
+  margin-left:-131px;
 }
 .arrow-box:after, .arrow-box:before {
 	left: 100%;
@@ -78,5 +79,5 @@
 }
 .has-gutter {
   margin-left: 120px;
-  padding-left:  2px;
+  padding-left:  10px;
 }
