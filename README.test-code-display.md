@@ -36,3 +36,13 @@ HTML...
 <!-- LESS file -->
 <link rel="stylesheet" type="text/css" href="<?php echo AllInOneMinify::CSS('css/stylesheet.less'); ?>">
 ```
+
+HTML & PHP...
+
+```html+php
+<!-- CSS Stylesheet -->
+<link rel="stylesheet" type="text/css" href="<?php echo AllInOneMinify::CSS('css/stylesheet.css'); ?>">
+
+<!-- LESS file -->
+<link rel="stylesheet" type="text/css" href="<?php echo AllInOneMinify::CSS('css/stylesheet.less'); ?>">
+```
