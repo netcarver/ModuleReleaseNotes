@@ -31,7 +31,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.7.5',
+            'version'   => '0.7.6',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,
@@ -356,11 +356,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 } else {
                     $field->label = __("No Tag-to-Tag Commit History Available");
                     $field->notes = __('If the author doesn\'t use Github Releases, they can start to show code changes between versions if they start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) each commit that increments the module version. **This helps the reader as it limits the listed commits to those representing changes.** The tags must match the version numbering scheme used by the module for this feature to work.');
-                    if ($has_changelog_file) {
-                        $field->collapsed = Inputfield::collapsedYes;
-                    }
                 }
-                if ($has_release_notes) {
+                if ($has_release_notes || $has_changelog_file) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
                 $field->value = "<div class='release-notes'>$tagged_log</div>";

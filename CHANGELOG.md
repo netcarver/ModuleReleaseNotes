@@ -1,3 +1,6 @@
+## 0.7.6 2017-11-19
+- Stop marking up breaking changes after first match.
+
 ## 0.7.5 2017-11-19
 - Fix markdown parsing of codeblocks that have a class of HTML+PHP.
 - Cleanly cut-off remote changelog after the title of the currently installed version.
