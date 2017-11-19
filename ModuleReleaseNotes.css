@@ -13,11 +13,16 @@
 .release-notes span.annotation.arrow-box      {font-family:inherit;color:white;font-weight:700;font-size:13px}
 .AdminThemeUikit .release-notes span.annotation  {font-size:12px;font-weight:400;padding:4px;}
 .release-notes div.new-changes      {border-left: 2px solid #e6e6e6;margin-top:.25em;padding-bottom:5px;margin-bottom:0}
-.release-notes div.new-changes h3   {padding-bottom:1px;margin-bottom:2px}
-.release-notes div.old-changes      {border-left: 4px solid transparent;height:120px}
+.release-notes div.breaking-change  {border-left: 2px solid #d28282}
+.release-notes div.new-changes h2   {padding-bottom:1px;margin:2px 0}
+.release-notes div.new-changes h3   {padding-bottom:1px;margin:2px 0}
+.release-notes div.old-changes h2   {padding-bottom:1px;margin:2px 0}
+.release-notes div.old-changes h3   {padding-bottom:1px;margin:2px 0}
+.release-notes div.old-changes      {border-left: 2px solid transparent;height:0}
 .release-notes div.all-changes      {height:400px}
 .release-notes div.long             {height:500px}
-.release-notes div.expand           {overflow-y:hidden;border-bottom:1px solid #c2e1f5}
+.release-notes div.expand           {overflow-y:hidden}
+.release-notes p.expand-control     {border-top:1px solid #e6e6e6}
 .release-notes .cursor-pointer      {cursor:pointer}
 .release-notes ul.commits{padding-left:0;list-style-type:none}
 .release-notes li.commit {padding-bottom:1em;display:block}
@@ -52,18 +57,6 @@
 	border-width: 8px;
 	margin-top: -8px;
 }
-.arrow-box-current {
-	background: #8fd593;
-	border-color: #dff5bf;
-}
-.arrow-box-current:after {
-	border-color: rgba(143, 213, 147, 0);
-	border-left-color: #8fd593;
-}
-.arrow-box-current:before {
-	border-color: rgba(223, 245, 191, 0);
-	border-left-color: #dff5bf;
-}
 .breaking-change span.arrow-box {
 	background: #d28282;
 	border-color: #f2e262;
@@ -76,6 +69,18 @@
 .breaking-change span.arrow-box:before {
 	border-color: rgba(242, 226, 98, 0);
 	border-left-color: #f2e262;
+}
+.arrow-box-current {
+	background: #8fd593   !important;
+	border-color: #dff5bf !important;
+}
+.arrow-box-current:after {
+	border-color: rgba(143, 213, 147, 0) !important;
+	border-left-color: #8fd593 !important;
+}
+.arrow-box-current:before {
+	border-color: rgba(223, 245, 191, 0) !important;
+	border-left-color: #dff5bf !important;
 }
 .has-gutter {
   margin-left: 120px;

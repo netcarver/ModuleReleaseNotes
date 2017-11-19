@@ -375,8 +375,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $field->label   = sprintf(__("Changelog from remote version %s"), $new_version);
                     $changelog_newtype = 'txt';
                     $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note, $changelog_newtype);
-                    $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file, $changelog_newtype);
-                    $changelog_file = $this->highlightLowAndHighVersions($changelog_file, $current_version, $new_version);
+                    $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file, $changelog_newtype, $new_version);
                     $changelog_file = "<div class='release-notes'>$changelog_file</div>";
                     if ($this->config->debug) $field->notes = $fmt_note;
                 } else {
@@ -572,29 +571,22 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $transforms = [];
         $reason     = '';
         $formatter  = self::getFormatterForFiletype($ext, $formatter_info);
-        if ($formatter) {
-            /**
-             * Display using formatter. Need to prevent possible XSS vectors here so it is all escaped...
-             */
+        if (true && ($formatter || ($formatter_info && $ext == 'md'))) {
             $unsafe_content = $this->prepareMarkdownCodeFences($unsafe_content);
             $transforms[] = __('Simplify Markdown codeblocks');
-            $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
-            $transforms[] = $formatter_info['type'];
+            if ($formatter) {
+                // Attempt to use preferred formatter.
+                $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
+                $transforms[] = $formatter_info['type'];
+            } else {
+                // Fallback to using PW's own entitiesMarkdown sanitiser...
+                $unsafe_content = $this->sanitizer->entitiesMarkdown($unsafe_content, true);
+                $transforms[] = __('PW EntitiesMarkdown');
+            }
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = __('HTML Purifier');
             $content = $this->changeH1toH2($content);
-            $transforms[] = __('h1 to h2 demotion');
-            $newtype = 'html';
-        } elseif ($formatter_info && $ext == 'md') {
-            // fallback to the internal Markdown sanitiser
-            $unsafe_content = $this->prepareMarkdownCodeFences($unsafe_content);
-            $transforms[] = __('Simplify Markdown codeblocks');
-            $unsafe_content = $this->sanitizer->entitiesMarkdown($unsafe_content, true);
-            $transforms[] = __('PW EntitiesMarkdown');
-            $content = $this->sanitizeString($unsafe_content);
-            $transforms[] = __('HTML Purifier');
-            $content = $this->changeH1toH2($content);
-            $transforms[] = __('h1 to h2 demotion');
+            $transforms[] = __('Demote h1 to h2');
             $newtype = 'html';
         } else {
             /**
@@ -631,28 +623,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
-    /**
-     * Wraps the given low and high version strings with a span that can be styled.
-     *
-     * When applied to the current and latest version numbers, allows easy visual identification of applicable changes.
-     */
-    protected function highlightLowAndHighVersions($log, $low_version, $high_version=false, $str_low=false, $str_high=false) {
-        if (false === $str_high) $str_high = __("Latest");
-        if (false === $str_low)  $str_low  = __("Installed");
-
-        $regex     = "~\b%s\b~";
-        $low_regex = sprintf($regex, preg_quote($low_version));
-
-        if (false !== $high_version) {
-            $high_regex  = sprintf($regex, preg_quote($high_version));
-            $log = preg_replace($high_regex, "<span class='annotation arrow-box arrow-box-latest'>$str_high</span>$high_version", $log, 1);
-        }
-        $log = preg_replace($low_regex,  "<span class='annotation arrow-box arrow-box-current'>$str_low</span>$low_version", $log, 1);
-
-        return $log;
-    }
-
-
     protected function highlightBreakingChanges($changes, &$flag) {
         $breaking_changes = explode(',', $this->breakingPhrases);
         foreach ($breaking_changes as $bp) {
@@ -671,20 +641,23 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     static $cut_regexes = [
         'html'     => [
             'heading' => '(<h2 class=was-h1>[^<]*</h2>)',
-            'version' => '(<h[2-3][^>]*>%s)\b',
+            'version' => '(<h[2-3][^>]*>%s\b.*)$',
         ],
         'markdown' => [
             'pre'     => '<pre>',
             'post'    => '</pre>',
             'heading' => '^(# .*)$',
-            'version' => '^(#{2,3} %s)\b',
+            'version' => '(#{2,3} %s\b.*)$',
         ],
     ];
 
 
-    protected function insertMarkerForVersion($version, $changelog, $type) {
+    protected function insertMarkerForVersion($version, $changelog, $type, $latest_version = false) {
+        $str_high = __("Latest");
+        $str_low  = __("Installed");
         $pre       = '';
         $post      = '';
+        $heading   = '';
 
         // Slice off the <pre> and </pre> in case this is a raw, or unformatted MD file...
         if (0 === stripos($changelog, '<pre>')) {
@@ -699,35 +672,44 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $new_class = '';
         $newstuff  = '';
 
-        // Slice off, and preserve the first h2 element.
+        // Slice off, and preserve the first "h2.was-h1" or "# h1 title" element.
         $heading_regex = @self::$cut_regexes[$type]['heading'];
         if (!empty($heading_regex)) {
             $heading_regex = "~$heading_regex~imU";
             $parts     = preg_split($heading_regex, $changelog, 3, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
             if (count($parts) > 1) {
-                $pre .= array_shift($parts);
+                $heading   = array_shift($parts);
+                $heading   = "<div class='heading has-gutter from-$type'>$heading</div>";
                 $changelog = trim(implode('', $parts));
             }
         }
 
+        $version_master_regex = @self::$cut_regexes[$type]['version'];
+        if (!empty($version_master_regex)) {
+            // Insert a marker for latest version (if given).
+            if (is_string($latest_version) && !empty($latest_version)) {
+                $version_regex = sprintf($version_master_regex, preg_quote($latest_version));
+                $changelog     = preg_replace("~$version_regex~imU", "<span class='annotation arrow-box arrow-box-latest'>$str_high</span>\$1", $changelog, 1);
+            }
 
-        // Divide the remaining document into the new and old portions. Classes on the divs are used to control
-        // the display of the result.
-        $version_regex = @self::$cut_regexes[$type]['version'];
-        if (!empty($version_regex)) {
-            $version_regex = sprintf($version_regex, preg_quote($version));
+            // Insert marker for the version we are currently on...
+            $version_regex = sprintf($version_master_regex, preg_quote($version));
+            $changelog     = preg_replace("~$version_regex~imU", "<span class='annotation arrow-box arrow-box-current'>$str_low</span>\$1", $changelog, 1);
+
+            // Divide the remaining document into the new and old portions. Classes on the divs are used to control
+            // the display of the result.
             $entries   = preg_split("~$version_regex~imU", $changelog, -1, PREG_SPLIT_DELIM_CAPTURE);
             $newstuff  = array_shift($entries);
+            $newstuff .= array_shift($entries);
             $oldstuff  = implode('', $entries);
-
-            $new_class = 'new-changes has-gutter';
+            $new_class = "new-changes has-gutter from-$type";
             $has_breaking_change = false;
             $newstuff = $this->highlightBreakingChanges($newstuff, $has_breaking_change);
             if ($has_breaking_change) {
                 $new_class .= ' breaking-change';
             }
             $newstuff   = "<div class='$new_class'>$newstuff</div>";
-            $wrap_class = 'old-changes has-gutter';
+            $wrap_class = "old-changes has-gutter from-$type";
         } else {
             $oldstuff   = $changelog;
             $wrap_class = 'all-changes';
@@ -736,7 +718,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         // Rebuild the changelog with the divisions in place...
         $grow_label = __('Show More');
         $oldstuff   = self::addExpansionWrapper($oldstuff, $grow_label, $wrap_class);
-        $changelog  = "$pre$newstuff$oldstuff$post";
+        $changelog  = "$pre$heading$newstuff$oldstuff$post";
         return $changelog;
     }
 
@@ -745,7 +727,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * Wrap the given content with a height-limiting wrapper and provide a link that expands it when clicked.
      */
     static protected function addExpansionWrapper($content, $label, $expand_class='', $link_class='grow-height') {
-        return "<div class='expansion-wrapper'><div class='$expand_class expand'>$content</div><p><a class='cursor-pointer $link_class'>$label</a></p></div>";
+        return "<div class='expansion-wrapper'><div class='$expand_class expand'>$content</div><p class='expand-control'><a class='cursor-pointer $link_class'>$label</a></p></div>";
     }
 
 
