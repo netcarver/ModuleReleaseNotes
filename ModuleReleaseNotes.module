@@ -550,7 +550,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * The github flavored markdown seems to allow for fenced codeblocks with mutliple language definitions.
      * Our versions of markdown don't seem to be able to cope with this, so simplify to first language (if any)
      */
-    protected function prepareMarkdownCodeFences($content) {
+    protected function simplifyMarkdownCodeblocks($content) {
         $regex = '^```([a-z0-9-_]*).*$';
         $content = preg_replace("~$regex~im", "```$1", $content);
         return $content;
@@ -569,9 +569,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $reason     = '';
         $formatter  = self::getFormatterForFiletype($ext, $formatter_info);
         if (true && ($formatter || ($formatter_info && $ext == 'md'))) {
-            $unsafe_content = $this->prepareMarkdownCodeFences($unsafe_content);
+            $unsafe_content = $this->simplifyMarkdownCodeblocks($unsafe_content);
             $transforms[] = __('Simplify Markdown codeblocks');
-            if ($formatter) {
+            if (true && $formatter) {
                 // Attempt to use preferred formatter.
                 $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
                 $transforms[] = $formatter_info['type'];
