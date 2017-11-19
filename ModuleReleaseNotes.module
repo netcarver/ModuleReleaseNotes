@@ -628,9 +628,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         foreach ($breaking_changes as $bp) {
             $bp = trim($bp);
             $pos = stripos($changes, $bp);
-            if (false !== $pos) {
+            if (false !== $pos && !$flag) {
                 $flag |= true;
-                $changes = str_ireplace($bp,  "<span class='breaking-change'>$bp</span>", $changes);
+                $changes = str_ireplace($bp,  "<span class=breaking-change>$bp</span>", $changes);
             }
         }
 
