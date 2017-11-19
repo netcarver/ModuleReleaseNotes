@@ -1,3 +1,7 @@
+## 0.8.0 2017-11-19
+- Feature: Optionally apply Prism Code highlighting to changelogs.
+- Minor style tweak.
+
 ## 0.7.6 2017-11-19
 - Stop marking up breaking changes after first match.
 
