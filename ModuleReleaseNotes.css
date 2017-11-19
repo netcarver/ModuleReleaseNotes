@@ -17,7 +17,7 @@
 .release-notes div.old-changes      {border-left: 4px solid transparent;height:120px}
 .release-notes div.all-changes      {height:400px}
 .release-notes div.long             {height:500px}
-.release-notes div.expand           {overflow-y:hidden}
+.release-notes div.expand           {overflow-y:hidden;border-bottom:1px solid #c2e1f5}
 .release-notes .cursor-pointer      {cursor:pointer}
 .release-notes ul.commits{padding-left:0;list-style-type:none}
 .release-notes li.commit {padding-bottom:1em;display:block}

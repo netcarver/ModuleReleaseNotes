@@ -19,8 +19,20 @@ This file includes a number of code examples that should all be displayed proper
 
 ## Fenced Blocks
 
+PHP...
+
 ```php
 echo <<<HTML
 <h1>Hello World</h1>
 HTML;
+```
+
+HTML...
+
+```html
+<!-- CSS Stylesheet -->
+<link rel="stylesheet" type="text/css" href="<?php echo AllInOneMinify::CSS('css/stylesheet.css'); ?>">
+
+<!-- LESS file -->
+<link rel="stylesheet" type="text/css" href="<?php echo AllInOneMinify::CSS('css/stylesheet.less'); ?>">
 ```
