@@ -1,3 +1,9 @@
+## 0.7.5 2017-11-19
+- Fix markdown parsing of codeblocks that have a class of HTML+PHP.
+- Cleanly cut-off remote changelog after the title of the currently installed version.
+- Better placement of the version arrow-box highlights in UIKit admin theme
+  and when viewing the remote changelog file as raw markdown.
+
 ## 0.7.4 2017-11-17 First Public Release
 - Update readme files.
 - Make some functions protected.
