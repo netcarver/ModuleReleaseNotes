@@ -551,6 +551,18 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     /**
+     * The github flavored markdown seems to allow for fenced codeblocks with mutliple language definitions.
+     * Our versions of markdown don't seem to be able to cope with this, so simplify to first language (if any)
+     */
+    protected function prepareMarkdownCodeFences($content) {
+        $regex = '^```([a-z0-9-_]*).*$';
+        $content = preg_replace("~$regex~im", "```$1", $content);
+        return $content;
+    }
+
+
+
+    /**
      * Tries to apply an appropriate textformatter to a given content string.
      * If no suitable external formatter is available, it will be passed through an internal 'verbatim' formatter.
      *
@@ -564,21 +576,25 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             /**
              * Display using formatter. Need to prevent possible XSS vectors here so it is all escaped...
              */
+            $unsafe_content = $this->prepareMarkdownCodeFences($unsafe_content);
+            $transforms[] = __('Simplify Markdown codeblocks');
             $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
             $transforms[] = $formatter_info['type'];
             $content = $this->sanitizeString($unsafe_content);
-            $transforms[] = 'HTML Purifier';
+            $transforms[] = __('HTML Purifier');
             $content = $this->changeH1toH2($content);
-            $transforms[] = 'h1 to h2 demotion';
+            $transforms[] = __('h1 to h2 demotion');
             $newtype = 'html';
         } elseif ($formatter_info && $ext == 'md') {
             // fallback to the internal Markdown sanitiser
+            $unsafe_content = $this->prepareMarkdownCodeFences($unsafe_content);
+            $transforms[] = __('Simplify Markdown codeblocks');
             $unsafe_content = $this->sanitizer->entitiesMarkdown($unsafe_content, true);
-            $transforms[] = 'entitiesMarkdown';
+            $transforms[] = __('PW EntitiesMarkdown');
             $content = $this->sanitizeString($unsafe_content);
-            $transforms[] = 'HTML Purifier';
+            $transforms[] = __('HTML Purifier');
             $content = $this->changeH1toH2($content);
-            $transforms[] = 'h1 to h2 demotion';
+            $transforms[] = __('h1 to h2 demotion');
             $newtype = 'html';
         } else {
             /**
@@ -589,11 +605,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
              * done then some characters with diacritic marks remain as html entities in the code.
              */
             $content = html_entity_decode($unsafe_content, ENT_COMPAT, 'UTF-8');
-            $transforms[] = 'HTML Entity Decode';
+            $transforms[] = __('HTML Entity Decode');
             $content = htmlspecialchars($content, ENT_COMPAT, 'UTF-8');
-            $transforms[] = 'HTML Special Character Encode';
+            $transforms[] = __('HTML Special Character Encode');
             $content = $this->utf8_wordwrap($content);
-            $transforms[] = 'UTF8 Wordwrap';
+            $transforms[] = __('UTF8 Wordwrap');
             $content = "<pre>$content</pre>";
 
             if ($formatter_info) {
