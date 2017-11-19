@@ -25,6 +25,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     protected $github_remaining_reads = 60;
+    protected $prism = null;
 
 
     public static function getModuleInfo() {
@@ -52,6 +53,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'openSettings'          => 0,
             'wordWrapColumn'        => 90,
             'breakingPhrases'       => 'BreakingChange, Breaking Change, Breaking-Change',
+            'usePrismIfAvailable'   => 0,
         ];
     }
 
@@ -74,6 +76,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         foreach(self::getDefaultConfig() as $key => $value) {
             $this->$key = $value;
         }
+        $this->prism = $this->modules->get('TextformatterPrism');
     }
 
 
@@ -582,6 +585,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             }
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = __('HTML Purifier');
+            if ($this->prism && $this->usePrismIfAvailable) {
+                $this->prism->format($content);
+                $transforms[] = __('Prism Code Highlighter');
+            }
             $content = $this->changeH1toH2($content);
             $transforms[] = __('Demote h1 to h2');
             $newtype = 'html';
@@ -802,6 +809,15 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $f->attr('value', $data['openSettings']);
         $fields->add($f);
 
+        if ($modules->get('TextformatterPrism')) {
+            $f = $modules->get('InputfieldRadios');
+            $f->attr('name', 'usePrismIfAvailable');
+            $f->label = __('Use PRISM code formatting - if possible?');
+            $f->addOption(0, __('No'));
+            $f->addOption(1, __('Yes'));
+            $f->attr('value', $data['usePrismIfAvailable']);
+            $fields->add($f);
+        }
 
         return $fields;
     }
