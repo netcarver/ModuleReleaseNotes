@@ -22,7 +22,16 @@
 .release-notes div.all-changes      {height:400px}
 .release-notes div.long             {height:500px}
 .release-notes div.expand           {overflow-y:hidden}
-.release-notes p.expand-control     {border-top:1px solid #e6e6e6;text-align:center}
+.release-notes p.expand-control     {padding-top:10px;border-top:1px solid #e6e6e6}
+.release-notes p.expand-control a   {
+  display:inline-block;
+  background-color:#3eb998;
+  color:#fff;
+  margin-top:0;
+  padding:.4em 1em;
+  border:none;
+  border-radius:5px;
+}
 .release-notes .cursor-pointer      {cursor:pointer}
 .release-notes ul.commits{padding-left:0;list-style-type:none}
 .release-notes li.commit {padding-bottom:1em;display:block}
