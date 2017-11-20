@@ -1,3 +1,6 @@
+## 0.8.1 2017-11-20
+- Improve "Show More"/"Show All" link styling to make them more obvious - thanks Matjazp.
+
 ## 0.8.0 2017-11-19
 - Feature: Optionally apply Prism Code highlighting to changelogs.
 - Minor style tweak.

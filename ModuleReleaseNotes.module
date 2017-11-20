@@ -10,11 +10,12 @@
  *
  * TODO
  * ----
+ * Move support for GitHub into repo-host abstraction
+ * Add retreival of tag sha's from GH and annotate the commit listings with tags
  * Add caching to help circumvent hitting hosting service API rate limits
+ * Add public data-access API for other modules to use
  * Add support for Gitlab hosted repositories via repo-host abstraction
  * Add support for BitBucket hosted repositories via repo-host abstraction
- * Move support for GitHub into repo-host abstraction
- * Add public data-access API for other modules to use
  *
  * Known Issues
  * ------------
@@ -32,7 +33,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.8.0',
+            'version'   => '0.8.1',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,
