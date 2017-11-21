@@ -25,8 +25,9 @@
 class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
-    protected $github_remaining_reads = 60;
+    protected $github_read_info = null;
     protected $prism = null;
+    protected $taglist = null;
 
 
     public static function getModuleInfo() {
@@ -81,6 +82,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    protected function getReadDepletionMessage($service, $service_info) {
+        $time = strftime('%F %T', $service_info['reset']);
+        $message = sprintf(__('Out of reads at %s. A maximum of %s reads per hour is allowed.<br>Try again after %s.'), $service, $service_info['limit'], $time);
+        return "<div class='read-depletion'>$message</span>";
+    }
+
     /**
      * Prepares commit meta-data for display
      */
@@ -92,8 +99,16 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $diff_url  = $commit['html_url'];
         $icon      = $info['repo_icon'];
 
+        // Format a tag marker...
+        $tag       = @$this->taglist[$commit['sha']];
+        if ($tag) {
+            $tag = "&mdash; <span class='has-git-tag'><i class='fa fa-icon fa-tag' aria-hidden=true></i> $tag</span>";
+        } else {
+            $tag = '';
+        }
+
         $date  = str_replace('T', ' ', $date);
-        $sig   = "$icon &mdash; $date &mdash; <a href='$diff_url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author";
+        $sig   = "$icon &mdash; $date &mdash; <a href='$diff_url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author $tag";
 
         return $sig;
     }
@@ -133,11 +148,40 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * Gets a list of tags + their SHAs from github.
+     * This allows the annotation of commit lists with the tags that match a commit.
+     */
+    public function getTagList($info, &$http) {
+        // TODO add caching (stop us from hitting API request limits
+
+        if ($this->taglist !== null) return;
+
+        $remote = $info['project_url'];
+        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
+        $url = "$api_remote/git/refs/tags";
+        $tmp_result = $http->getJSON($url);
+        $this->recordRemainingReads($http);
+        $code = $http->getHttpCode();
+        if(200 == $code) {
+            $result = [];
+            $num = count($tmp_result);
+            if ($num) {
+                foreach ($tmp_result as $tagref) {
+                    $sha = $tagref['object']['sha'];
+                    $tag = str_replace('refs/tags/', '', $tagref['ref']);
+                    $result[$sha] = $tag;
+                }
+            }
+            $this->taglist = $result;
+        }
+    }
 
     /**
      *
      */
-    public function getTaggedLog($info, &$http, &$tagged_log) {
+    public function getTagToTagCommitList($info, &$http, &$tagged_log) {
+        $this->getTagList($info, $http);
         // TODO add caching (stop us from hitting API request limits
         $remote = $info['project_url'];
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
@@ -222,7 +266,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     protected function recordRemainingReads($http) {
         $headers = $http->getResponseHeaders();
         if (isset($headers['x-ratelimit-remaining'])) {
-            $this->github_remaining_reads = [
+            $this->github_read_info = [
                 'limit'     => $headers['x-ratelimit-limit'],
                 'remaining' => $headers['x-ratelimit-remaining'],
                 'reset'     => $headers['x-ratelimit-reset'],
@@ -237,6 +281,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * Currently only knows about Github.
      */
     public function getLastCommits($info, &$http, &$latest_commits) {
+        $this->getTagList($info, $http);
         $remote = $info['project_url'];
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/commits";
@@ -319,13 +364,19 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $this->getReleaseNotes($info, $http, $release_notes, $fmt_note);
                 $release_link  = "$remote/releases/tag/$new_version";
             }
+            if (0 == $this->github_read_info['remaining']) {
+                $release_notes = $this->getReadDepletionMessage('Github', $this->github_read_info);
+            }
             $has_release_notes = $release_notes != $release_notes_default;
 
             //
             // Fetch tagged log (if any)...
             //
             if ($changes) {
-                $this->getTaggedLog($info, $http, $tagged_log);
+                $this->getTagToTagCommitList($info, $http, $tagged_log);
+            }
+            if (0 == $this->github_read_info['remaining']) {
+                $tagged_log = $this->getReadDepletionMessage('Github', $this->github_read_info);
             }
             $has_tagged_log = $tagged_log != $tagged_log_default;
 
@@ -391,6 +442,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             if (!$has_release_notes && !$has_tagged_log && !$has_changelog_file) {
 
                 $this->getLastCommits($info, $http, $latest_commits);
+                if (0 == $this->github_read_info['remaining']) {
+                    $latest_commits = $this->getReadDepletionMessage('Github', $this->github_read_info);
+                }
                 $has_latest_commits = $latest_commits != $latest_commits_default;
 
                 $field = $this->modules->get('InputfieldMarkup');
@@ -404,8 +458,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             }
 
             if ($this->config->debug) {
-                $wrapper->notes = __("Github API reads remaining: ") . $this->github_remaining_reads['remaining'] .'/'. $this->github_remaining_reads['limit'] . '. ' .
-                    __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
+                $wrapper->notes = __("Github API reads remaining: ") . $this->github_read_info['remaining'] .'/'. $this->github_read_info['limit'] . '. ' .
+                    __('Resets at ') .strftime('%F %T', $this->github_read_info['reset']);
             }
 
             $return_info->children->insertAfter($wrapper, $children[0]);
