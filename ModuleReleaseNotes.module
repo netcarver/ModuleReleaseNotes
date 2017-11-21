@@ -700,13 +700,13 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     static $cut_regexes = [
         'html'     => [
             'heading' => '(<h2 class=was-h1>[^<]*</h2>)',
-            'version' => '(<h[2-3][^>]*>%s\b.*)$',
+            'version' => '(<h[2-3][^>]*>%s\s.*)$',
         ],
         'markdown' => [
             'pre'     => '<pre>',
             'post'    => '</pre>',
             'heading' => '^(# .*)$',
-            'version' => '(#{2,3} %s\b.*)$',
+            'version' => '(#{2,3} %s\s.*)$',
         ],
     ];
 
@@ -747,12 +747,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         if (!empty($version_master_regex)) {
             // Insert a marker for latest version (if given).
             if (is_string($latest_version) && !empty($latest_version)) {
-                $version_regex = sprintf($version_master_regex, preg_quote($latest_version));
+                $version_regex = sprintf($version_master_regex, preg_quote(trim($latest_version, ',.')));
                 $changelog     = preg_replace("~$version_regex~imU", "<span class='annotation arrow-box arrow-box-latest'>$str_high</span>\$1", $changelog, 1);
             }
 
             // Insert marker for the version we are currently on...
-            $version_regex = sprintf($version_master_regex, preg_quote($version));
+            $version_regex = sprintf($version_master_regex, preg_quote(trim($version, ',.')));
             $changelog     = preg_replace("~$version_regex~imU", "<span class='annotation arrow-box arrow-box-current'>$str_low</span>\$1", $changelog, 1);
 
             // Divide the remaining document into the new and old portions. Classes on the divs are used to control
