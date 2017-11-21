@@ -25,7 +25,7 @@
 class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
-    protected $github_remaining_reads = 60;
+    protected $github_read_info = null;
     protected $prism = null;
     protected $taglist = null;
 
@@ -81,6 +81,12 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $this->prism = $this->modules->get('TextformatterPrism');
     }
 
+
+    protected function getReadDepletionMessage($service, $service_info) {
+        $time = strftime('%F %T', $service_info['reset']);
+        $message = sprintf(__('Out of reads at %s. A maximum of %s reads per hour is allowed.<br>Try again after %s.'), $service, $service_info['limit'], $time);
+        return "<div class='read-depletion'>$message</span>";
+    }
 
     /**
      * Prepares commit meta-data for display
@@ -260,7 +266,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     protected function recordRemainingReads($http) {
         $headers = $http->getResponseHeaders();
         if (isset($headers['x-ratelimit-remaining'])) {
-            $this->github_remaining_reads = [
+            $this->github_read_info = [
                 'limit'     => $headers['x-ratelimit-limit'],
                 'remaining' => $headers['x-ratelimit-remaining'],
                 'reset'     => $headers['x-ratelimit-reset'],
@@ -358,6 +364,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $this->getReleaseNotes($info, $http, $release_notes, $fmt_note);
                 $release_link  = "$remote/releases/tag/$new_version";
             }
+            if (0 == $this->github_read_info['remaining']) {
+                $release_notes = $this->getReadDepletionMessage('Github', $this->github_read_info);
+            }
             $has_release_notes = $release_notes != $release_notes_default;
 
             //
@@ -365,6 +374,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             //
             if ($changes) {
                 $this->getTagToTagCommitList($info, $http, $tagged_log);
+            }
+            if (0 == $this->github_read_info['remaining']) {
+                $tagged_log = $this->getReadDepletionMessage('Github', $this->github_read_info);
             }
             $has_tagged_log = $tagged_log != $tagged_log_default;
 
@@ -430,6 +442,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             if (!$has_release_notes && !$has_tagged_log && !$has_changelog_file) {
 
                 $this->getLastCommits($info, $http, $latest_commits);
+                if (0 == $this->github_read_info['remaining']) {
+                    $latest_commits = $this->getReadDepletionMessage('Github', $this->github_read_info);
+                }
                 $has_latest_commits = $latest_commits != $latest_commits_default;
 
                 $field = $this->modules->get('InputfieldMarkup');
@@ -443,8 +458,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             }
 
             if ($this->config->debug) {
-                $wrapper->notes = __("Github API reads remaining: ") . $this->github_remaining_reads['remaining'] .'/'. $this->github_remaining_reads['limit'] . '. ' .
-                    __('Resets at ') .strftime('%F %T', $this->github_remaining_reads['reset']);
+                $wrapper->notes = __("Github API reads remaining: ") . $this->github_read_info['remaining'] .'/'. $this->github_read_info['limit'] . '. ' .
+                    __('Resets at ') .strftime('%F %T', $this->github_read_info['reset']);
             }
 
             $return_info->children->insertAfter($wrapper, $children[0]);

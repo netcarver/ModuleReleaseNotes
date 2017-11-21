@@ -102,3 +102,8 @@
   border-radius:5px;
   color:#fff;
 }
+.read-depletion {
+  text-align:center;
+  padding: 3em;
+  border:2px dashed #d28282;
+}
