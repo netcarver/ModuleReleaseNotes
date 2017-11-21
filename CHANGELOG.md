@@ -1,3 +1,7 @@
+## 0.9.0 2017-11-21
+- Annotate git commit lists with git-tags when possible.
+- Indicate if the repository host is in a rate-limited/read-depleted state.
+
 ## 0.8.1 2017-11-20
 - Improve "Show More"/"Show All" link styling to make them more obvious - thanks Matjazp.
 
