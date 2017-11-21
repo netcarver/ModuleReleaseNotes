@@ -27,6 +27,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
     protected $github_remaining_reads = 60;
     protected $prism = null;
+    protected $taglist = null;
 
 
     public static function getModuleInfo() {
@@ -92,8 +93,16 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $diff_url  = $commit['html_url'];
         $icon      = $info['repo_icon'];
 
+        // Format a tag marker...
+        $tag       = @$this->taglist[$commit['sha']];
+        if ($tag) {
+            $tag = "&mdash; <span class='has-git-tag'><i class='fa fa-icon fa-tag' aria-hidden=true></i> $tag</span>";
+        } else {
+            $tag = '';
+        }
+
         $date  = str_replace('T', ' ', $date);
-        $sig   = "$icon &mdash; $date &mdash; <a href='$diff_url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author";
+        $sig   = "$icon &mdash; $date &mdash; <a href='$diff_url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author $tag";
 
         return $sig;
     }
@@ -133,11 +142,40 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * Gets a list of tags + their SHAs from github.
+     * This allows the annotation of commit lists with the tags that match a commit.
+     */
+    public function getTagList($info, &$http) {
+        // TODO add caching (stop us from hitting API request limits
+
+        if ($this->taglist !== null) return;
+
+        $remote = $info['project_url'];
+        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
+        $url = "$api_remote/git/refs/tags";
+        $tmp_result = $http->getJSON($url);
+        $this->recordRemainingReads($http);
+        $code = $http->getHttpCode();
+        if(200 == $code) {
+            $result = [];
+            $num = count($tmp_result);
+            if ($num) {
+                foreach ($tmp_result as $tagref) {
+                    $sha = $tagref['object']['sha'];
+                    $tag = str_replace('refs/tags/', '', $tagref['ref']);
+                    $result[$sha] = $tag;
+                }
+            }
+            $this->taglist = $result;
+        }
+    }
 
     /**
      *
      */
-    public function getTaggedLog($info, &$http, &$tagged_log) {
+    public function getTagToTagCommitList($info, &$http, &$tagged_log) {
+        $this->getTagList($info, $http);
         // TODO add caching (stop us from hitting API request limits
         $remote = $info['project_url'];
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
@@ -237,6 +275,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * Currently only knows about Github.
      */
     public function getLastCommits($info, &$http, &$latest_commits) {
+        $this->getTagList($info, $http);
         $remote = $info['project_url'];
         $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
         $url = "$api_remote/commits";
@@ -325,7 +364,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             // Fetch tagged log (if any)...
             //
             if ($changes) {
-                $this->getTaggedLog($info, $http, $tagged_log);
+                $this->getTagToTagCommitList($info, $http, $tagged_log);
             }
             $has_tagged_log = $tagged_log != $tagged_log_default;
 
