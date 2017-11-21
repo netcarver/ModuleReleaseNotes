@@ -1,3 +1,6 @@
+## 0.9.1 2017-11-21
+- Fix problem locating out-of-order versions in changelogs.
+
 ## 0.9.0 2017-11-21
 - Annotate git commit lists with git-tags when possible.
 - Indicate if the repository host is in a rate-limited/read-depleted state.
