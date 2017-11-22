@@ -699,14 +699,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
     static $cut_regexes = [
         'html'     => [
-            'heading' => '(<h2 class=was-h1>[^<]*</h2>)',
-            'version' => '(<h[2-3][^>]*>%s[\s\]].*)$',
+            'heading' => '(<h2 class=was-h1>.*</h2>)$',
+            'version' => '(<h[2-3][^>]*>.*%s[\s<].*)$',
         ],
         'markdown' => [
             'pre'     => '<pre>',
             'post'    => '</pre>',
             'heading' => '^(# .*)$',
-            'version' => '(#{2,3} %s[\s\]].*)$',
+            'version' => '(#{2,3} \[?%s[\s\]].*)$',
         ],
     ];
 
