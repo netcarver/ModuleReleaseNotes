@@ -785,7 +785,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * Wrap the given content with a height-limiting wrapper and provide a link that expands it when clicked.
      */
     static protected function addExpansionWrapper($content, $label, $expand_class='', $link_class='grow-height') {
-        return "<div class='expansion-wrapper'><div class='$expand_class expand'>$content</div><p class='expand-control'><a class='cursor-pointer $link_class'>$label</a></p></div>";
+        return "<div class='expansion-wrapper'><div class='$expand_class expand'>$content</div><p class='expand-control'><a class='cursor-pointer ui-button ui-corner-all ui-state-default $link_class'><span class='ui-button-text'>$label</span></a></p></div>";
     }
 
 
