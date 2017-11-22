@@ -11,6 +11,7 @@
  * TODO
  * ----
  * Move support for GitHub into repo-host abstraction
+ * Add paging to API result fetches
  * Add caching to help circumvent hitting hosting service API rate limits
  * Add public data-access API for other modules to use
  * Add support for Gitlab hosted repositories via repo-host abstraction
