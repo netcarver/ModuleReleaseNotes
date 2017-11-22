@@ -11,7 +11,6 @@
  * TODO
  * ----
  * Move support for GitHub into repo-host abstraction
- * Add retreival of tag sha's from GH and annotate the commit listings with tags
  * Add caching to help circumvent hitting hosting service API rate limits
  * Add public data-access API for other modules to use
  * Add support for Gitlab hosted repositories via repo-host abstraction
@@ -415,7 +414,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if ($has_release_notes || $has_changelog_file) {
                     $field->collapsed = Inputfield::collapsedYes;
                 }
-                $field->value = "<div class='release-notes'>$tagged_log</div>";
+                $field->value = "<div class='release-notes release-notes-commit-list'>$tagged_log</div>";
                 $wrapper->add($field);
             }
 
@@ -428,7 +427,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                     $changelog_newtype = 'txt';
                     $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note, $changelog_newtype);
                     $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file, $changelog_newtype, $new_version);
-                    $changelog_file = "<div class='release-notes'>$changelog_file</div>";
+                    $changelog_file = "<div class='release-notes release-notes-changelog'>$changelog_file</div>";
                     if ($this->config->debug) $field->notes = $fmt_note;
                 } else {
                     $field->label   = sprintf(__("No Changelog from remote version %s"), $new_version);
@@ -453,7 +452,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if (!$has_latest_commits) {
                     $field->notes = __('Please ask the author to add support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging git commits at each new version is better still, as it allows automatic diffing between versions. If on Github, using the Releases feature is a nice step up.');
                 }
-                $field->value = "<div class='release-notes'>$latest_commits</div>";
+                $field->value = "<div class='release-notes release-notes-commit-list'>$latest_commits</div>";
                 $wrapper->add($field);
             }
 
@@ -825,25 +824,63 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $defaults  = self::getDefaultConfig();
         $data      = array_merge($defaults, $data);
 
+        $pre_upgrade = $modules->get("InputfieldFieldset");
+        $pre_upgrade->label = __('Pre-Upgrade Options');
+
         $f = $modules->get('InputfieldInteger');
         $f->attr('name', 'fallbackCommitHistory');
         $f->attr('inputType', 'number');
         $f->attr('type', 'number');
         $f->label = __('Number of Commits To Show');
-        $f->description = __('If there are no Release Notes, Tagged Commits or Changelog, how many lines of commit history should be shown?');
+        $f->description = __('If there are no Release Notes, Tagged Commits or Changelog, show how many commits?');
         $f->max = 30;
         $f->min = 2;
         $f->notes = __("Minimum 2, Maximum 30");
         $f->attr('value', $data['fallbackCommitHistory']);
-        $fields->add($f);
+        $f->columnWidth = 40;
+        $pre_upgrade->add($f);
 
+        $fields->add($pre_upgrade);
         $f = $modules->get('InputfieldText');
         $f->attr('name', 'breakingPhrases');
         $f->label = __('Breaking Changes');
-        $f->description = __('A comma-separated list of phrases that indicate a breaking-change may be present.');
-        $f->notes = __("The search for these phrases in changes will be case-insensitive.");
+        $f->description = __('A comma-separated list of words or phrases that indicate a breaking-change may be present.');
+        $f->notes = __("Searches will be case-insensitive.");
         $f->attr('value', $data['breakingPhrases']);
-        $fields->add($f);
+        $f->columnWidth = 60;
+        $pre_upgrade->add($f);
+
+
+
+        $module_config = $modules->get("InputfieldFieldset");
+        $module_config->label = __('Module Config Page Options');
+
+        $f = $modules->get('InputfieldRadios');
+        $f->attr('name', 'openSettings');
+        $f->label = __('Auto-open the "Support Files" section?');
+        $f->addOption(0, __('No, keep it collapsed.'));
+        $f->addOption(1, __('Yes, show me a list of support files.'));
+        $f->attr('value', $data['openSettings']);
+        $f->columnWidth = 50;
+        $module_config->add($f);
+
+        if ($modules->get('TextformatterPrism')) {
+            $f = $modules->get('InputfieldRadios');
+            $f->attr('name', 'usePrismIfAvailable');
+            $f->label = __('Use PRISM code formatting - if possible?');
+            $f->addOption(0, __('No'));
+            $f->addOption(1, __('Yes'));
+            $f->attr('value', $data['usePrismIfAvailable']);
+            $f->columnWidth = 50;
+            $module_config->add($f);
+        }
+
+        $fields->add($module_config);
+
+
+
+        $common_config = $modules->get("InputfieldFieldset");
+        $common_config->label = __('Common Options');
 
         $f = $modules->get('InputfieldInteger');
         $f->attr('name', 'wordWrapColumn');
@@ -854,25 +891,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $f->min = 40;
         $f->notes = __("Minimum 40, Maximum 300");
         $f->attr('value', $data['wordWrapColumn']);
-        $fields->add($f);
+        $common_config->add($f);
 
-        $f = $modules->get('InputfieldRadios');
-        $f->attr('name', 'openSettings');
-        $f->label = __('Open the "Support Files" section of the module information page automatically');
-        $f->addOption(0, __('No, keep it collapsed.'));
-        $f->addOption(1, __('Yes, show me a list of support files.'));
-        $f->attr('value', $data['openSettings']);
-        $fields->add($f);
-
-        if ($modules->get('TextformatterPrism')) {
-            $f = $modules->get('InputfieldRadios');
-            $f->attr('name', 'usePrismIfAvailable');
-            $f->label = __('Use PRISM code formatting - if possible?');
-            $f->addOption(0, __('No'));
-            $f->addOption(1, __('Yes'));
-            $f->attr('value', $data['usePrismIfAvailable']);
-            $fields->add($f);
-        }
+        $fields->add($common_config);
 
         return $fields;
     }
