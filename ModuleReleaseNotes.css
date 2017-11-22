@@ -1,6 +1,9 @@
 .release-notes {max-width:100%}
+.release-notes h1 a {text-decoration:none}
+.release-notes h2 a {text-decoration:none}
+.release-notes h3 a {text-decoration:none}
 .release-notes h1 {margin-top:1em !important; font-size:1.5em;padding-bottom:0.2em;border-bottom:1px solid #eaecef;max-width:100% !important}
-.release-notes h2 {margin-top:1em;padding-bottom:0.2em;border-bottom:1px solid #eaecef}
+.release-notes h2 {margin-top:1em;padding-bottom:0.2em}
 .release-notes ol {margin-bottom:1em;padding-left:2em}
 .release-notes ul {margin-bottom:1em;list-style-type:disc;padding-left:2em;margin-top:5px}
 .release-notes ul ul {list-style-type:circle}
@@ -22,6 +25,8 @@
 .release-notes div.all-changes      {height:400px}
 .release-notes div.long             {height:500px}
 .release-notes div.expand           {overflow-y:hidden}
+.release-notes-changelog h2         {margin:  1em 0 0 0;padding:0}
+.release-notes-changelog h3         {margin: .3em 0 0 0;padding:0}
 .release-notes p.expand-control     {padding-top:10px;border-top:1px solid #e6e6e6}
 .release-notes p.expand-control a   {
   display:inline-block;

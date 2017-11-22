@@ -700,13 +700,13 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     static $cut_regexes = [
         'html'     => [
             'heading' => '(<h2 class=was-h1>[^<]*</h2>)',
-            'version' => '(<h[2-3][^>]*>%s\s.*)$',
+            'version' => '(<h[2-3][^>]*>%s[\s\]].*)$',
         ],
         'markdown' => [
             'pre'     => '<pre>',
             'post'    => '</pre>',
             'heading' => '^(# .*)$',
-            'version' => '(#{2,3} %s\s.*)$',
+            'version' => '(#{2,3} %s[\s\]].*)$',
         ],
     ];
 
@@ -794,7 +794,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      * Builds a markup input field to contain the given information.
      */
     static protected function wrapValueInField($name, $value, $label, $icon, $notes) {
-        $value = "<div class='release-notes'>$value</div>";
+        $value = "<div class='release-notes release-notes-$name'>$value</div>";
         $f = wire('modules')->get('InputfieldMarkup');
         $f->name = $name;
         $f->label = $label;
