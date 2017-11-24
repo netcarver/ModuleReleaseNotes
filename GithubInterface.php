@@ -1,5 +1,6 @@
 <?php namespace Netcarver;
 
+require_once 'FileCache.php';
 require_once 'GitRepositoryInterface.php';
 
 
@@ -15,7 +16,7 @@ require_once 'GitRepositoryInterface.php';
  * - Consider adding OAUTH token support.
  *
  */
-class GithubInterface implements GitRepositoryInterface {
+class GithubInterface extends FileCache implements GitRepositoryInterface {
 
     // Per-instance data...
     protected $remote  = null;
@@ -23,7 +24,6 @@ class GithubInterface implements GitRepositoryInterface {
     protected $repo    = null;
     protected $http    = null;
     protected $tags    = null;
-    protected $cache   = null;
     protected $headers = [];
 
     // Data common across all instances...
@@ -39,11 +39,16 @@ class GithubInterface implements GitRepositoryInterface {
             'tag-to-tag-commits',
             'changelog-access',
             'commits',
-            'forks'
+            'forks',
         ],
     ];
 
 
+    /**
+     * Returns information about this repository interface.
+     *
+     * This is a mixture of static and per-instance information.
+     */
     public function GetInfo() {
         return array_merge(
             self::$info,
@@ -57,21 +62,17 @@ class GithubInterface implements GitRepositoryInterface {
     }
 
 
-    protected function setReadInfo($headers) {
-        if (isset($headers['x-ratelimit-remaining'])) {
-            self::$info['remaining'] = $headers['x-ratelimit-remaining'];
-            self::$info['limit']     = $headers['x-ratelimit-limit'];
-            self::$info['reset']     = $headers['x-ratelimit-reset'];
-        }
 
-    }
-
-
-    public function __construct($http, $remote, $application, $cache_dir) {
+    public function __construct($http, $remote, $application, array $options) {
         $owner = '';
         $repo  = '';
         $m     = [];
-        $this->setCacheDirectory($cache_dir);
+
+        if (array_key_exists('cache_dir', $options)) {
+            $this->setCacheDirectory($options['cache_dir']);
+        } else {
+            throw new \Exception('Cache directory is needed.');
+        }
         $ok = preg_match('~^https?://github.com/([^/]++)/(.++)~i', $remote, $m);
         if ($ok) {
             $this->headers['Accept'] = 'application/vnd.github.v3+json'; // As requested by the github v3 api documentation.
@@ -89,6 +90,9 @@ class GithubInterface implements GitRepositoryInterface {
     }
 
 
+    /**
+     * Returns the URL for humans to review the Release Notes at GH.
+     */
     public function GetReleaseNoteViewUrl($version) {
         $encoded_version = rawurlencode($version);
         return "https://github.com/$this->encoded_owner}/{$this->encoded_repo}/releases/tags/$encoded_version";
@@ -119,7 +123,7 @@ class GithubInterface implements GitRepositoryInterface {
             $encoded_version = '/tags/' . rawurlencode($version);
         }
         $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/releases$encoded_version";
-        $reply = $this->cachedRead($url);
+        $reply = $this->RepositoryRead($url);
         if(200 == $this->http->getHttpCode() && !empty($reply['body'])) {
             return $reply['body'];
         }
@@ -131,7 +135,7 @@ class GithubInterface implements GitRepositoryInterface {
     public function GetTags() {
         if (null === $this->tags) {
             $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/git/refs/tags";
-            $reply = $this->cachedRead($url);
+            $reply = $this->RepositoryRead($url);
             $code  = $this->http->getHttpCode();
             if(200 == $code || 304 == $code) {
                 $result = [];
@@ -189,7 +193,7 @@ class GithubInterface implements GitRepositoryInterface {
             if ($slice > 30) $slice = 30;
         }
 
-        $reply     = $this->cachedRead($url);
+        $reply     = $this->RepositoryRead($url);
         $http_code = $this->http->getHttpCode();
         if(200 == $http_code || 304 == $http_code) {
             if ($slice) {
@@ -220,7 +224,7 @@ class GithubInterface implements GitRepositoryInterface {
 
     public function GetChangelog() {
         $url = "https://raw.githubusercontent.com/{$this->encoded_owner}/{$this->encoded_repo}/master/CHANGELOG.md";
-        return $this->cachedRead($url, false);
+        return $this->RepositoryRead($url, false);
     }
 
 
@@ -230,7 +234,7 @@ class GithubInterface implements GitRepositoryInterface {
             $sort = 'newest';
         }
         $url = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/forks?sort=$sort&page=1";
-        return $this->cachedRead($url);
+        return $this->RepositoryRead($url);
     }
 
 
@@ -238,89 +242,7 @@ class GithubInterface implements GitRepositoryInterface {
     /**
      *
      */
-    protected $cache_dir = null;
-
-
-    /**
-     *
-     */
-    public function setCacheDirectory($dir = null) {
-        if (is_string($dir) && !empty($dir)) {
-            $this->cache_dir = realpath("$dir/");
-        } else {
-            $this->cache_dir = dirname(__FILE__) . "/cache";
-        }
-    }
-
-
-
-    /**
-     *
-     */
-    protected function urlToKey($url) {
-        $key = str_replace('https://', '', strtolower($url));
-        $key = str_replace(['/',':','?','#', '%'], '-', $key);
-        return $key;
-    }
-
-
-
-
-    /**
-     *
-     */
-    protected function keyToStorageLocation($key) {
-        $dir = $this->cache_dir;
-        if (!$dir || !is_readable($dir)) {
-            throw new \Exception("Cache directory is invalid or unreadable.");
-        }
-        $location = "{$this->cache_dir}/$key";
-        return $location;
-    }
-
-
-
-    /**
-     *
-     */
-    protected function getEntryForKey($key) {
-        $file  = $this->keyToStorageLocation($key);
-        $entry = @file_get_contents($file);
-        if ($entry) {
-            if (is_callable('gzinflate')) {
-                $entry = gzinflate($entry);
-            }
-            $entry = json_decode($entry, true);
-            return $entry;
-        } else {
-            return [
-                'reply'    => null,
-                'etag'     => null,
-                'last_mod' => null,
-            ];
-        }
-    }
-
-
-
-    /**
-     *
-     */
-    protected function setEntryForKey($key, $entry) {
-        $file  = $this->keyToStorageLocation($key);
-        $entry = json_encode($entry);
-        if (is_callable('gzdeflate')) {
-            $entry = gzdeflate($entry);
-        }
-        file_put_contents($file, $entry);
-    }
-
-
-
-    /**
-     *
-     */
-    protected function cachedRead($url, $json = true) {
+    protected function RepositoryRead($url, $json = true) {
         $reply    = null;
         $etag     = null;
         $last_mod = null;
@@ -343,16 +265,22 @@ class GithubInterface implements GitRepositoryInterface {
         $new_reply        = ($json) ? $this->http->getJson($url) : $this->http->get($url);
         $http_code        = $this->http->getHttpCode();
         $response_headers = $this->http->getResponseHeaders();
-        $this->setReadInfo($response_headers);
+        if (isset($response_headers['x-ratelimit-remaining'])) {
+            self::$info['remaining'] = $response_headers['x-ratelimit-remaining'];
+            self::$info['limit']     = $response_headers['x-ratelimit-limit'];
+            self::$info['reset']     = $response_headers['x-ratelimit-reset'];
+        }
 
         switch ($http_code) {
         case 200:
+            /**
+             * Cache miss, but we now have the values from the headers and body that we can store in the cache.
+             */
             $entry['etag']     = @$response_headers['etag'];
             $entry['last_mod'] = @$response_headers['Last-Modified'];
             $entry['reply']    = $new_reply;
             $this->setEntryForKey($key, $entry);
             $reply = $new_reply;
-
             break;
 
         case 301:
@@ -370,8 +298,14 @@ class GithubInterface implements GitRepositoryInterface {
             $new_url = $response_headers['Location'];
             break;
 
-
         case 304:
+            /**
+             * Cache hit! File contents are already in the cache!
+             */
+            break;
+
+        case 403:
+        case 404:
             break;
         }
 

@@ -150,8 +150,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             if (!is_dir($cache_dir) && !mkdir($cache_dir)) {
                 throw new \Exception(sprintf(__("Could not create cache directory at %s, is the assets directory writable?"), $cache_dir));
             }
-            $client = new \Netcarver\GithubInterface($http, $remote, $application, $cache_dir);
-            /* $client->setCacheDirectory($cache_dir); */
+            $client = new \Netcarver\GithubInterface($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://bitbucket.org')) {
             // TODO develop bitbucket client
         } else if (false !== stripos($remote, '://gitlab.com')) {
@@ -204,10 +203,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $current_version = $current_info['version'];
             $new_version     = $info['module_version']; // This is a string.
             $remote          = $info['project_url'];
-            //$remote_info     = $this->remoteHostInfo($remote);
-            //$repo_icon       = $remote_info['icon'];
             $remote_icon     = '<i class="fa fa-icon fa-external-link"></i>';
-            //$is_github       = 'Github' == $remote_info['host'];
 
             $info['version_current'] = $current_version; // Push the current version into the $info
             if (is_int($current_version)) {
@@ -220,9 +216,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
             $changes         = $current_version != $new_version;
             $version_order   = version_compare($current_version, $new_version);
-//\TD::barDump("Current v[$current_version], new v[$new_version], version_order[$version_order]");
             if ($version_order == 0) {
-//\TD::barDump("Exiting as there are no changes!");
                 return; // No change!
             }
 
