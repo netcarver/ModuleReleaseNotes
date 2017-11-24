@@ -10,9 +10,8 @@ require_once 'GitRepositoryInterface.php';
  *
  * TODO
  * ====
+ *  - Lookup GZIP detection from old stuff
  * - Treat 301, 302 & 307 return codes correctly
- * - Better caching of responses - look for tags first - if these do not exist, then no point looking for releases or
- *   tag-to-tag commits, they will not exist and will return a 404 and use up a read request.
  * - Consider adding OAUTH token support.
  *
  */
@@ -83,6 +82,7 @@ class GithubInterface implements GitRepositoryInterface {
             $this->repo   = $m[2];
             $this->encoded_owner = rawurlencode($m[1]);
             $this->encoded_repo  = rawurlencode($m[2]);
+            $this->GetTags();
         } else {
             throw new \Exception('Invalid repository signature');
         }
@@ -104,8 +104,18 @@ class GithubInterface implements GitRepositoryInterface {
      * GetReleaseNotes();        // returns all the release notes for the owner-repository. - Use with care.
      */
     public function GetReleaseNotes($version=null) {
+
+        //
+        // If we could not access any tags for this repo, then there will be no release notes.
+        //
+        if (null === $this->tags) return null;
+
         $encoded_version = '';
         if (is_string($version) && !empty($version)) {
+            // If the version is not in the tag list, we waste a read just to fetch a 404.
+            if (!in_array($version, $this->tags)) {
+                return null;
+            }
             $encoded_version = '/tags/' . rawurlencode($version);
         }
         $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/releases$encoded_version";
@@ -113,22 +123,17 @@ class GithubInterface implements GitRepositoryInterface {
         if(200 == $this->http->getHttpCode() && !empty($reply['body'])) {
             return $reply['body'];
         }
-        /* $this->http->setHeaders($this->headers); */
-        /* $reply = $this->http->getJSON($url); */
-        /* $this->setReadInfo($this->http->getResponseHeaders()); */
 
         return null;
     }
 
 
     public function GetTags() {
-        if ($this->tags === null) {
+        if (null === $this->tags) {
             $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/git/refs/tags";
             $reply = $this->cachedRead($url);
-            /* $this->http->setHeaders($this->headers); */
-            /* $reply = $this->http->getJSON($url); */
-            /* $this->setReadInfo($this->http->getResponseHeaders()); */
-            if(200 == $this->http->getHttpCode()) {
+            $code  = $this->http->getHttpCode();
+            if(200 == $code || 304 == $code) {
                 $result = [];
                 $num = count($reply);
                 if ($num) {
@@ -156,6 +161,17 @@ class GithubInterface implements GitRepositoryInterface {
     public function GetCommits($startref, $endref='HEAD') {
         if (is_string($startref) && !empty(trim($startref))) {
             //
+            // If we could not access any tags for this repo, then there will be no tag-to-tag commit.
+            //
+            // If the startref or the endref (when not HEAD) is not in the taglist there will be no tag-to-tag list.
+            if (null === $this->tags || !in_array($startref, $this->tags)) {
+                return null;
+            }
+            if ('HEAD' !== $endref && !in_array($endref, $this->tags)) {
+                return null;
+            }
+
+            //
             // Pull all commits between the startref and endref reference points.
             // Useful for getting a list of commits between tags.
             //
@@ -173,9 +189,6 @@ class GithubInterface implements GitRepositoryInterface {
             if ($slice > 30) $slice = 30;
         }
 
-        /* $this->http->setHeaders($this->headers); */
-        /* $reply = $this->http->getJSON($url); */
-        /* $this->setReadInfo($this->http->getResponseHeaders()); */
         $reply     = $this->cachedRead($url);
         $http_code = $this->http->getHttpCode();
         if(200 == $http_code || 304 == $http_code) {
@@ -186,8 +199,6 @@ class GithubInterface implements GitRepositoryInterface {
                 $repo_url = $reply['html_url'];
                 $commits  = array_reverse($reply['commits']); // We want them most-recent-first
             }
-
-            $this->GetTags();
 
             $history = [];
             foreach ($commits as $commit) {
@@ -208,15 +219,8 @@ class GithubInterface implements GitRepositoryInterface {
 
 
     public function GetChangelog() {
-        $url   = "https://raw.githubusercontent.com/{$this->encoded_owner}/{$this->encoded_repo}/master/CHANGELOG.md";
+        $url = "https://raw.githubusercontent.com/{$this->encoded_owner}/{$this->encoded_repo}/master/CHANGELOG.md";
         return $this->cachedRead($url, false);
-        /* $this->http->setHeaders($this->headers); */
-        /* $reply = $this->http->get($url); */
-        /* $this->setReadInfo($this->http->getResponseHeaders()); */
-        /* if(200 == $this->http->getHttpCode()) { */
-        /*     return $reply; */
-        /* } */
-        /* return null; */
     }
 
 
@@ -225,15 +229,8 @@ class GithubInterface implements GitRepositoryInterface {
         if (!in_array($sort, ['newest', 'oldest', 'watchers'])) {
             $sort = 'newest';
         }
-        $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/forks?sort=$sort&page=1";
+        $url = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/forks?sort=$sort&page=1";
         return $this->cachedRead($url);
-        /* $this->http->setHeaders($this->headers); */
-        /* $reply = $this->http->getJson($url); */
-        /* $this->setReadInfo($this->http->getResponseHeaders()); */
-        /* if(200 == $this->http->getHttpCode()) { */
-        /*     return $reply; */
-        /* } */
-        /* return null; */
     }
 
 
@@ -290,7 +287,11 @@ class GithubInterface implements GitRepositoryInterface {
         $file  = $this->keyToStorageLocation($key);
         $entry = @file_get_contents($file);
         if ($entry) {
-            return json_decode($entry, true);
+            if (is_callable('gzinflate')) {
+                $entry = gzinflate($entry);
+            }
+            $entry = json_decode($entry, true);
+            return $entry;
         } else {
             return [
                 'reply'    => null,
@@ -307,11 +308,11 @@ class GithubInterface implements GitRepositoryInterface {
      */
     protected function setEntryForKey($key, $entry) {
         $file  = $this->keyToStorageLocation($key);
-//\TD::barDump($file, 'Save location');
         $entry = json_encode($entry);
-//\TD::barDump($entry, 'Save data');
-        $ok = file_put_contents($file, $entry);
-
+        if (is_callable('gzdeflate')) {
+            $entry = gzdeflate($entry);
+        }
+        file_put_contents($file, $entry);
     }
 
 
@@ -338,30 +339,23 @@ class GithubInterface implements GitRepositoryInterface {
             $headers['If-Modified-Since'] = $last_mod;
         }
         $this->http->setHeaders($headers);
-$debug = ['headers' => $headers, 'url' => $url];
-\TD::barDump($debug, "Request");
 
         $new_reply        = ($json) ? $this->http->getJson($url) : $this->http->get($url);
         $http_code        = $this->http->getHttpCode();
         $response_headers = $this->http->getResponseHeaders();
         $this->setReadInfo($response_headers);
-\TD::barDump($http_code, "HTTP Return Code");
-\TD::barDump($response_headers, "HTTP Return Headers");
 
         switch ($http_code) {
         case 200:
-\TD::barDump("Cache miss, read from GH, saving!");
             $entry['etag']     = @$response_headers['etag'];
             $entry['last_mod'] = @$response_headers['Last-Modified'];
             $entry['reply']    = $new_reply;
             $this->setEntryForKey($key, $entry);
             $reply = $new_reply;
 
-/* \TD::barDump("Old etag[$etag] new etag [{$entry['etag']}]", 'etags'); */
             break;
 
         case 301:
-\TD::barDump("Permanent redirect from GH.");
             /**
              * Permanent redirect from GH.
              */
@@ -370,7 +364,6 @@ $debug = ['headers' => $headers, 'url' => $url];
 
         case 302:
         case 307:
-\TD::barDump("Temporary redirect from GH.");
             /**
              * Temporary redirect from GH. Try again - once.
              */
@@ -379,7 +372,6 @@ $debug = ['headers' => $headers, 'url' => $url];
 
 
         case 304:
-\TD::barDump("Cache hit!");
             break;
         }
 
