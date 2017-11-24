@@ -100,14 +100,16 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     /**
      * Prepares commit meta-data for display
      */
-    protected function formatCommitMetaData($commit, $icon) {
+    protected function formatCommitMetaData($commit, $icon = null) {
         $author = $commit['author'];
         $date   = $commit['date'];
         $sha    = substr($commit['sha'], 0, 8);
         $tag    = $commit['tag'];
         $url    = $commit['url'];
 
-        $icon   = "<i class='fa fa-icon fa-$icon'></i>";
+        if (null === $icon) {
+            $icon   = "<i class='fa fa-icon fa-git'></i>";
+        }
 
         // Format a tag marker...
         if ($tag) {
@@ -142,17 +144,18 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $http = new WireHttp();
         $http->setTimeout(2);
         $application = 'PW-Module-Release-Notes';
+        $cache_dir = realpath($this->config->paths->cache);
+        $cache_dir = "{$cache_dir}/module-release-notes";
+        if (!is_dir($cache_dir) && !mkdir($cache_dir)) {
+            throw new \Exception(sprintf(__("Could not create cache directory at %s, is the assets directory writable?"), $cache_dir));
+        }
 
         if (false !== stripos($remote, '://github.com')) {
             require_once 'GithubInterface.php';
-            $cache_dir = realpath($this->config->paths->cache);
-            $cache_dir = "{$cache_dir}/module-release-notes";
-            if (!is_dir($cache_dir) && !mkdir($cache_dir)) {
-                throw new \Exception(sprintf(__("Could not create cache directory at %s, is the assets directory writable?"), $cache_dir));
-            }
             $client = new \Netcarver\GithubInterface($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://bitbucket.org')) {
-            // TODO develop bitbucket client
+            require_once 'BitbucketInterface.php';
+            $client = new \Netcarver\BitbucketInterface($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://gitlab.com')) {
             // TODO develop gitlab client
         }
@@ -168,7 +171,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             foreach ($commits['commits'] as $commit) {
                 $message = $this->sanitizeString($commit['message']);
                 $message = $this->utf8_wordwrap($message);
-                $sig     = $this->formatCommitMetaData($commit, 'github');  // TODO attach icon from client
+                $sig     = $this->formatCommitMetaData($commit, $icon);
                 $entry   = "<li class='commit'><span class='sig'>$sig</span><br><pre>$message</pre></li>";
                 $list   .= $entry;
             }
@@ -210,7 +213,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $current_version = $this->modules->formatVersion($current_version); // Convert to string to allow comparisons
             }
             $info['module_version_current'] = $current_version;
-            //$info['repo_icon']   = $repo_icon;
             $info['remote_icon'] = $remote_icon;
             ksort($info);
 
@@ -250,7 +252,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $return_info->children->insertAfter($wrapper, $children[0]);
                 return;
             }
-
 
 
             $client_info    = $client->GetInfo();
@@ -392,7 +393,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $tmp_commits = $client->GetCommits($this->fallbackCommitHistory);
                 $client_info = $client->GetInfo();
                 if (null !== $tmp_commits) {
-                    $latest_commits = $this->formatCommitList($tmp_commits, $info['icon']);
+                    $latest_commits = $this->formatCommitList($tmp_commits, $repo_icon);
                 } elseif (0 == $client_info['remaining']) {
                     $latest_commits = $this->getReadDepletionMessage($client_info);
                 }
@@ -413,9 +414,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
             //
-            // Display remaining reads (Debug mode only)
+            // Display remaining reads (Debug mode only and the client has read limits.)
             //
-            if ($this->config->debug) {
+            if ($this->config->debug && $client_info['reset'] !== 0) {
                 $wrapper->notes = sprintf(__("%s API reads remaining: %s/%s. Resets at %s"), $client_info['name'], $client_info['remaining'], $client_info['limit'], strftime('%F %T', $client_info['reset']));
             }
 
