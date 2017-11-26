@@ -1,4 +1,5 @@
-<?php
+<?php namespace ProcessWire;
+
 
 /**
  * ProcessWire
@@ -7,27 +8,37 @@
  *
  * http://processwire.com
  *
+ * DONE
+ * ----
+ * - Move support for GitHub into repo-host abstraction
+ * - Add support for situation where local install version > published version.
+ *   Could try displaying local changelog file (if any, as it is likely to be more current than remote one)
+ * - Use capabilities flags
+ * - Add caching to help circumvent hitting hosting service API rate limits
+ * - Add support for Gitlab hosted repositories via repo-host abstraction
+ * - Add support for BitBucket hosted repositories via repo-host abstraction
  *
  * TODO
  * ----
- * Move support for GitHub into repo-host abstraction
- * Add paging to API result fetches
- * Add caching to help circumvent hitting hosting service API rate limits
- * Add public data-access API for other modules to use
- * Add support for Gitlab hosted repositories via repo-host abstraction
- * Add support for BitBucket hosted repositories via repo-host abstraction
+ * - Add paging to API result fetches
+ * - Add public data-access API for other modules to use
  *
  * Known Issues
  * ------------
  *
  */
 
+require_once 'FileCache.php';
+
+
 class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     protected $github_read_info = null;
+    protected $repo_client = null;
     protected $prism = null;
     protected $taglist = null;
+
 
 
     public static function getModuleInfo() {
@@ -56,6 +67,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'wordWrapColumn'        => 90,
             'breakingPhrases'       => 'BreakingChange, Breaking Change, Breaking-Change',
             'usePrismIfAvailable'   => 0,
+            'cacheDirectory'        => 'module-release-notes',
         ];
     }
 
@@ -78,29 +90,31 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         foreach(self::getDefaultConfig() as $key => $value) {
             $this->$key = $value;
         }
-        $this->prism = $this->modules->get('TextformatterPrism');
     }
 
 
-    protected function getReadDepletionMessage($service, $service_info) {
+    protected function getReadDepletionMessage($service_info) {
         $time = strftime('%F %T', $service_info['reset']);
-        $message = sprintf(__('Out of reads at %s. A maximum of %s reads per hour is allowed.<br>Try again after %s.'), $service, $service_info['limit'], $time);
-        return "<div class='read-depletion'>$message</span>";
+        $message = sprintf(__('Out of reads at %s. A maximum of %s reads per hour is allowed.<br>Try again after %s.'), $service_info['name'], $service_info['limit'], $time);
+        return "<div class='warning'>$message</span>";
     }
+
 
     /**
      * Prepares commit meta-data for display
      */
-    protected function formatCommitMetaData($commit, $info) {
-        $author    = $commit['commit']['author']['name'];
-        $committer = $commit['commit']['committer']['name'];
-        $date      = $commit['commit']['committer']['date'];
-        $sha       = substr($commit['sha'], 0, 8);
-        $diff_url  = $commit['html_url'];
-        $icon      = $info['repo_icon'];
+    protected function formatCommitMetaData($commit, $icon = null) {
+        $author = $commit['author'];
+        $date   = $commit['date'];
+        $sha    = substr($commit['sha'], 0, 8);
+        $tag    = $commit['tag'];
+        $url    = $commit['url'];
+
+        if (null === $icon) {
+            $icon   = "<i class='fa fa-icon fa-git'></i>";
+        }
 
         // Format a tag marker...
-        $tag       = @$this->taglist[$commit['sha']];
         if ($tag) {
             $tag = "&mdash; <span class='has-git-tag'><i class='fa fa-icon fa-tag' aria-hidden=true></i> $tag</span>";
         } else {
@@ -108,34 +122,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         }
 
         $date  = str_replace('T', ' ', $date);
-        $sig   = "$icon &mdash; $date &mdash; <a href='$diff_url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author $tag";
+        $sig   = "$icon &mdash; $date &mdash; <a href='$url' target='_diff'>$sha <i class='fa fa-icon fa-external-link'></i></a> &mdash; $author $tag";
 
         return $sig;
     }
 
-
-
-
-    /**
-     * Get githubs ReleaseNotes entry for the given module.
-     */
-    public function getReleaseNotes($info, &$http, &$release_notes, &$fmt_note) {
-        // TODO add caching (stop us from hitting API request limits
-        // Look for release notes
-        $remote = $info['project_url'];
-        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
-        $url = "$api_remote/releases/tags/{$info['module_version']}";
-        $tmp_release_notes = $http->getJSON($url);
-        $this->recordRemainingReads($http);
-        $code = $http->getHttpCode();
-        if(200 == $code && !empty($tmp_release_notes['body'])) {
-            // TODO Handle non 200 return codes, or empty body!
-            // TODO It is possible for the requests to be refused due to rate-limiting - this needs to be conveyed to the
-            // user
-            $release_notes_newtype = 'txt';
-            $release_notes = $this->formatTextOfType('md', $tmp_release_notes['body'], $fmt_note, $release_notes_newtype);
-        }
-    }
 
 
     /**
@@ -148,160 +139,60 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
-    /**
-     * Gets a list of tags + their SHAs from github.
-     * This allows the annotation of commit lists with the tags that match a commit.
-     */
-    public function getTagList($info, &$http) {
-        // TODO add caching (stop us from hitting API request limits
 
-        if ($this->taglist !== null) return;
 
-        $remote = $info['project_url'];
-        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
-        $url = "$api_remote/git/refs/tags";
-        $tmp_result = $http->getJSON($url);
-        $this->recordRemainingReads($http);
-        $code = $http->getHttpCode();
-        if(200 == $code) {
-            $result = [];
-            $num = count($tmp_result);
-            if ($num) {
-                foreach ($tmp_result as $tagref) {
-                    $sha = $tagref['object']['sha'];
-                    $tag = str_replace('refs/tags/', '', $tagref['ref']);
-                    $result[$sha] = $tag;
-                }
-            }
-            $this->taglist = $result;
+    static protected function cacheLocation($cache_name) {
+        $cache_dir = realpath(wire('config')->paths->cache);
+        $cache_dir = "{$cache_dir}/$cache_name";
+        if (!is_dir($cache_dir) && !mkdir($cache_dir)) {
+            throw new \Exception(sprintf(__("Could not create cache directory at %s, is the assets directory writable?"), $cache_dir));
         }
+        return $cache_dir;
     }
 
-    /**
-     *
-     */
-    public function getTagToTagCommitList($info, &$http, &$tagged_log) {
-        $this->getTagList($info, $http);
-        // TODO add caching (stop us from hitting API request limits
-        $remote = $info['project_url'];
-        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
-        $url = "$api_remote/compare/{$info['module_version_current']}...{$info['module_version']}";
-        $tmp_result = $http->getJSON($url);
-        $this->recordRemainingReads($http);
-        $code = $http->getHttpCode();
-        if(200 == $code && !empty($tmp_result['commits'])) {
-            $history = [];
-            $commits = $tmp_result['commits'];
-            foreach ($commits as $commit) {
-                $message   = $this->sanitizeString($commit['commit']['message']);
-                $message   = $this->utf8_wordwrap($message);
-                $sig       = $this->formatCommitMetaData($commit, $info);
-                $entry     = "<li class='commit'><span class='sig'>$sig</span><br><pre>$message</pre></li>";
-                $history[] = $entry;
-            }
-            $history   = implode("", $history);
-            $diff_url  = $tmp_result['html_url'];
-            $diff_link = "(<a href='$diff_url' target='_diff'>View diff. {$info['remote_icon']}</i></a>)";
-            $tagged_log = "<ul class='commits'>$history</ul><p><a href='$diff_url' target='_diff'>{$info['repo_icon']} View Entire Diff.</a></p>";
-        }
-    }
+    protected function getClientForRepo($remote) {
+        $m = [];
+        preg_match('~https?://(.+?)/~i', $remote, $m);
+        $client = $m[1];
+        $http = new WireHttp();
+        $http->setTimeout(2);
+        $application = 'PW-Module-Release-Notes';
+        $cache_dir   = self::cacheLocation($this->cacheDirectory);
 
-
-
-    /**
-     * Get the changelog file for the given module.
-     *
-     * Currently only knows about Github.
-     */
-    public function getChangelog($info, &$http, &$changelog) {
-        $remote = $info['project_url'];
-        $raw_remote = str_replace('https://github.com/', 'https://raw.githubusercontent.com/', $remote);
-        $url = "$raw_remote/master/CHANGELOG.md";
-        $result = $http->get($url);
-        $this->recordRemainingReads($http);
-        if(200 == $http->getHttpCode()) {
-            $changelog = $result;
-        }
-    }
-
-
-
-    /**
-     * Examine the remote URL to determine the hosting service and icon to use.
-     */
-    public function remoteHostInfo($remote) {
         if (false !== stripos($remote, '://github.com')) {
-            return [
-                'host' => 'Github',
-                'link' => $remote,
-                'icon' => '<i class="fa fa-icon fa-github"></i>',
-            ];
+            require_once 'GithubRepositoryAdaptor.php';
+            $client = new \Netcarver\GithubRepositoryAdaptor($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://bitbucket.org')) {
-            return [
-                'host' => 'BitBucket',
-                'link' => $remote,
-                'icon' => '<i class="fa fa-icon fa-bitbucket"></i>'
-            ];
+            require_once 'BitbucketRepositoryAdaptor.php';
+            $client = new \Netcarver\BitbucketRepositoryAdaptor($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://gitlab.com')) {
-            return [
-                'host' => 'GitLab',
-                'link' => $remote,
-                'icon' => '<i class="fa fa-icon fa-gitlab"></i>'
-            ];
+            // TODO develop gitlab client
         }
 
-        // Use a generic git icon...
-        return [
-            'host' => 'Unknown',
-            'link' => $remote,
-            'icon' => '<i class="fa fa-icon fa-git"></i>',
-        ];
+        return $client;
     }
 
 
 
-    /**
-     * Pulls the x-ratelimit headers from Github.
-     */
-    protected function recordRemainingReads($http) {
-        $headers = $http->getResponseHeaders();
-        if (isset($headers['x-ratelimit-remaining'])) {
-            $this->github_read_info = [
-                'limit'     => $headers['x-ratelimit-limit'],
-                'remaining' => $headers['x-ratelimit-remaining'],
-                'reset'     => $headers['x-ratelimit-reset'],
-            ];
-        }
-    }
-
-
-    /**
-     * Pulls the last N commits for the given module.
-     *
-     * Currently only knows about Github.
-     */
-    public function getLastCommits($info, &$http, &$latest_commits) {
-        $this->getTagList($info, $http);
-        $remote = $info['project_url'];
-        $api_remote = str_replace('https://github.com/', 'https://api.github.com/repos/', $remote);
-        $url = "$api_remote/commits";
-        $result = $http->getJSON($url);
-        $this->recordRemainingReads($http);
-        $code = $http->getHttpCode();
-        if(200 == $code && !empty($result)) {
-            $history = [];
-            $commits = array_slice($result, 0, $this->data['fallbackCommitHistory']);
-            foreach ($commits as $commit) {
-                $message   = $this->sanitizeString($commit['commit']['message']);
-                $message   = $this->utf8_wordwrap($message);
-                $sig       = $this->formatCommitMetaData($commit, $info);
-                $entry     = "<li class='commit'><span class='sig'>$sig</span><br><pre>$message</pre></li>";
-                $history[] = $entry;
+    protected function formatCommitList($commits, $icon) {
+        $list = '';
+        if (count($commits['commits'])) {
+            foreach ($commits['commits'] as $commit) {
+                $message = $this->sanitizeString($commit['message']);
+                $message = $this->utf8_wordwrap($message);
+                $sig     = $this->formatCommitMetaData($commit, $icon);
+                $entry   = "<li class='commit'><span class='sig'>$sig</span><br><pre>$message</pre></li>";
+                $list   .= $entry;
             }
-            $history   = implode("", $history);
-            $latest_commits = "<ul class='commits'>$history</ul>";
         }
+        $url = @$commits['url']; // Optional URL to repo host where this list can be viewed.
+        if ($url) {
+            $url = "<p><a href='$url' target='_diff'>$icon " . __('View in repository.') . "</a></p>";
+        }
+
+        return "<ul class='commits'>$list</ul>$url";
     }
+
 
 
     /**
@@ -317,42 +208,81 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
          * commit messages to the download confirmation form.
          */
         $this->addHookAfter("ProcessModule::buildDownloadConfirmForm", function($event) {
+            $this->prism     = $this->modules->get('TextformatterPrism');
             $info            = $event->arguments[0];
             $module_class    = $info['class_name'];
             $current_info    = $this->modules->getModuleInfo($module_class);
             $current_version = $current_info['version'];
-            $new_version     = $info['module_version'];
+            $new_version     = $info['module_version']; // This is a string.
             $remote          = $info['project_url'];
-            $remote_info     = $this->remoteHostInfo($remote);
-            $repo_icon       = $remote_info['icon'];
             $remote_icon     = '<i class="fa fa-icon fa-external-link"></i>';
-            $is_github       = 'Github' == $remote_info['host'];
 
-            // Push the current version into the $info
-            $info['version_current'] = $current_version;
+            $info['version_current'] = $current_version; // Push the current version into the $info
             if (is_int($current_version)) {
-                $current_version = $this->modules->formatVersion($current_version);
+                $current_version = $this->modules->formatVersion($current_version); // Convert to string to allow comparisons
             }
             $info['module_version_current'] = $current_version;
-            $info['repo_icon']   = $repo_icon;
             $info['remote_icon'] = $remote_icon;
             ksort($info);
 
             $changes         = $current_version != $new_version;
-
-            $http = new WireHttp();
-            $http->setHeader('User-Agent', 'netcarver-pw-module-version-checker');
-            $http->setTimeout(2);
+            $version_order   = version_compare($current_version, $new_version);
+            if ($version_order == 0) {
+                return; // No change!
+            }
 
             $return_info     = $event->return;
             $children        = $return_info->children;
-
-
             $wrapper = $this->modules->get('InputfieldFieldset');
             $wrapper->name  = 'changes-wrapper';
             $wrapper->label = __("What's Changed?");
 
-            $release_notes  = $release_notes_default  = __('Not Available - Github Release Notes Not Found');
+            //
+            // Handle case where a more recent version is installed locally.
+            //
+            if ($version_order > 0) {
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'release-notes release-notes-warning';
+                $field->label = __("Version Downgrade Warning");
+                $field->value = "<div class=warning>" . sprintf(__("The version currently installed may be more developed than the one you are about to install.<br>If you continue, you may loose some functionality or experience problems."), $current_version, $new_version) . "</div>";
+                $wrapper->add($field);
+                $return_info->children->insertAfter($wrapper, $children[0]);
+                return;
+            }
+
+
+            $client = $this->getClientForRepo($remote);
+            if (is_string($client)) {
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'release-notes release-notes-warning';
+                $field->label = __("Unsupported Remote Repository Host");
+                $field->value = "<div class=warning>" . sprintf(__("Sorry, I don't know how to connect to the git hosting service at %s. Please let my author know about this!"), $client) . "</div>";
+                $wrapper->add($field);
+                $return_info->children->insertAfter($wrapper, $children[0]);
+                return;
+            }
+
+
+            $client_info    = $client->GetInfo();
+            $repo_icon      = $client_info['icon'];
+            $repo_supports_releases    = in_array('release-notes', $client_info['capabilities']);
+            $repo_supports_tag_to_tag  = in_array('tag-to-tag-commits', $client_info['capabilities']);
+            $repo_supports_changelog   = in_array('changelog-access', $client_info['capabilities']);
+            $repo_supports_commit_list = in_array('commits', $client_info['capabilities']);
+
+            if (!$repo_supports_releases && !$repo_supports_tag_to_tag && !$repo_supports_changelog && !$repo_supports_commit_list) {
+                $field = $this->modules->get('InputfieldMarkup');
+                $field->name = 'release-notes release-notes-warning';
+                $field->label = __("Impotent Repository Adaptor");
+                $needed = 'release-notes, tag-to-tag-commits, changelog-access, commits';
+                $field->value = "<div class=warning>" . sprintf(__("Sorry, but the %s client adaptor doesn't have any of the needed query capabilities [%s]"), $client_info['name'], $needed) . "</div>";
+                $wrapper->add($field);
+                $return_info->children->insertAfter($wrapper, $children[0]);
+                return;
+            }
+
+
+            $release_notes  = $release_notes_default  = __('Not Available - Release Notes Not Found');
             $tagged_log     = $tagged_log_default     = __('Not Available - One or More Git Tags Missing');
             $changelog_file = $changelog_file_default = __('Not Available - File Missing');
             $latest_commits = $latest_commits_default = __('Comming Soon!');
@@ -360,42 +290,59 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             //
             // Fetch release notes...
             //
-            if ($changes && $is_github) {
-                $this->getReleaseNotes($info, $http, $release_notes, $fmt_note);
-                $release_link  = "$remote/releases/tag/$new_version";
-            }
-            if (0 == $this->github_read_info['remaining']) {
-                $release_notes = $this->getReadDepletionMessage('Github', $this->github_read_info);
+            if ($repo_supports_releases) {
+                $release_link      = $client->GetReleaseNoteViewUrl($new_version);
+                $tmp_release_notes = $client->GetReleaseNotes($new_version);
+                $client_info = $client->GetInfo();
+                if (!empty($tmp_release_notes)) {
+                    $release_notes_newtype = 'txt';
+                    $release_notes = $this->formatTextOfType('md', $tmp_release_notes, $fmt_note, $release_notes_newtype);
+                } elseif (0 == $client_info['remaining']) {
+                    $release_notes = $this->getReadDepletionMessage($client_info);
+                }
             }
             $has_release_notes = $release_notes != $release_notes_default;
 
+
             //
-            // Fetch tagged log (if any)...
+            // Fetch a tag-to-tag commit list...
             //
-            if ($changes) {
-                $this->getTagToTagCommitList($info, $http, $tagged_log);
-            }
-            if (0 == $this->github_read_info['remaining']) {
-                $tagged_log = $this->getReadDepletionMessage('Github', $this->github_read_info);
+            if ($repo_supports_tag_to_tag) {
+                $tmp_commits = $client->GetCommits($current_version, $new_version);
+                $client_info = $client->GetInfo();
+                if (null !== $tmp_commits) {
+                    $tagged_log = $this->formatCommitList($tmp_commits, $repo_icon);
+                } elseif (0 == $client_info['remaining']) {
+                    $tagged_log = $this->getReadDepletionMessage($client_info);
+                }
             }
             $has_tagged_log = $tagged_log != $tagged_log_default;
+
 
             //
             // Fetch changelog file (if any)...
             //
-            $this->getChangelog($info, $http, $changelog_file);
+            if ($repo_supports_changelog) {
+                $tmp_changelog_file = $client->GetChangelog();
+                if (null !== $tmp_changelog_file) {
+                    $changelog_file = $tmp_changelog_file;
+                }
+            }
             $has_changelog_file = $changelog_file != $changelog_file_default;
 
 
-            if ($is_github && $changes) {
+            //
+            // Github release notes section
+            //
+            if ($repo_supports_releases) {
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'release-notes';
                 if ($has_release_notes) {
-                    $field->label  = sprintf(__("Github Release Notes for version %s."), $new_version);
+                    $field->label  = sprintf(__("Release Notes for version %s."), $new_version);
                     $release_notes = "<div class='release-notes'>$release_notes<p><a href='$release_link' target='_diff'>$repo_icon View</a><p></div>";
                     if ($this->config->debug) $field->notes = $fmt_note;
                 } else {
-                    $field->label = sprintf(__("No Github Release Notes for version %s."), $new_version);
+                    $field->label = sprintf(__("No Release Notes for version %s."), $new_version);
                     $field->notes = __('To add official release notes, please ask the module author to start using the Github [Releases](https://help.github.com/articles/creating-releases/) feature. They will have to start [tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) the code as they push new versions in order to use this feature.');
                     $field->collapsed = Inputfield::collapsedYes;
                 }
@@ -403,7 +350,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $wrapper->add($field);
             }
 
-            if ($changes) {
+
+            //
+            // Tag-to-Tag commit list section
+            //
+            if ($repo_supports_tag_to_tag) {
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'tagged-log';
                 if ($has_tagged_log) {
@@ -419,7 +370,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $wrapper->add($field);
             }
 
-            if (!$has_release_notes || $has_changelog_file) {
+
+            //
+            // CHANGELOG section
+            //
+            if ($repo_supports_changelog && (!$has_release_notes || $has_changelog_file)) {
                 // If there are no release notes, or there is a changelog file, we show this field.
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'changelog';
@@ -439,27 +394,39 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $wrapper->add($field);
             }
 
-            if (!$has_release_notes && !$has_tagged_log && !$has_changelog_file) {
 
-                $this->getLastCommits($info, $http, $latest_commits);
-                if (0 == $this->github_read_info['remaining']) {
-                    $latest_commits = $this->getReadDepletionMessage('Github', $this->github_read_info);
+            //
+            // Last N commits section
+            //
+            if ($repo_supports_commit_list && !$has_tagged_log) {
+                $tmp_commits = $client->GetCommits($this->fallbackCommitHistory);
+                $client_info = $client->GetInfo();
+                if (null !== $tmp_commits) {
+                    $latest_commits = $this->formatCommitList($tmp_commits, $repo_icon);
+                } elseif (0 == $client_info['remaining']) {
+                    $latest_commits = $this->getReadDepletionMessage($client_info);
                 }
                 $has_latest_commits = $latest_commits != $latest_commits_default;
 
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'commit-log';
-                $field->label = $this->data['fallbackCommitHistory'] . ' ' . __("Most Recent Commits");
+                $field->label = sprintf(__("Last %s Commits, most recent first."), $this->data['fallbackCommitHistory']);
                 if (!$has_latest_commits) {
                     $field->notes = __('Please ask the author to add support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging git commits at each new version is better still, as it allows automatic diffing between versions. If on Github, using the Releases feature is a nice step up.');
                 }
                 $field->value = "<div class='release-notes release-notes-commit-list'>$latest_commits</div>";
+                if ($has_release_notes || $has_changelog_file) {
+                    $field->collapsed = Inputfield::collapsedYes;
+                }
                 $wrapper->add($field);
             }
 
-            if ($this->config->debug) {
-                $wrapper->notes = __("Github API reads remaining: ") . $this->github_read_info['remaining'] .'/'. $this->github_read_info['limit'] . '. ' .
-                    __('Resets at ') .strftime('%F %T', $this->github_read_info['reset']);
+
+            //
+            // Display remaining reads (Debug mode only and the client has read limits.)
+            //
+            if ($this->config->debug && $client_info['reset'] !== 0) {
+                $wrapper->notes = sprintf(__("%s API reads remaining: %s/%s. Resets at %s"), $client_info['name'], $client_info['remaining'], $client_info['limit'], strftime('%F %T', $client_info['reset']));
             }
 
             $return_info->children->insertAfter($wrapper, $children[0]);
@@ -472,6 +439,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
          * installation. This allows access to a level of help for modules that wasn't there before.
          */
         $this->addHookAfter("ProcessModule::executeEdit", function($event) {
+            $this->prism  = $this->modules->get('TextformatterPrism');
             $info         = null;
             $module_class = '';
             $append_info  = false;
@@ -895,6 +863,60 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $common_config->add($f);
 
         $fields->add($common_config);
+
+
+        $cache_config = $modules->get("InputfieldFieldset");
+        $cache_config->label = __('Cache Options');
+        $cache_config->collapsed = Inputfield::collapsedYes;
+
+        $cache     = new \Netcarver\FileCache();
+        $cache_dir = self::cacheLocation($data['cacheDirectory']);
+        $cache->setCacheDirectory($cache_dir);
+
+        /**
+         * Clear out the cached files when requested to
+         */
+        if (isset($_POST['clearCache']) && $_POST['clearCache'] == 1) {
+            $cache->clearCache();
+            $cached_files = [];
+        } else {
+            $locale = localeconv();
+            $cached_files = array_map(
+                function($i) use ($cache_dir, $locale) {
+                    $size = number_format(filesize($i), 0, $locale['decimal_point'], $locale['thousands_sep']);
+                    return htmlspecialchars(str_replace("$cache_dir/", '', $i)."  ($size bytes)");
+                },
+                $cache->getCachedFiles()
+            );
+        }
+
+        $cached_file_count = count($cached_files);
+
+        $f = $modules->get('InputfieldText');
+        $f->attr('name', 'cacheDirectory');
+        $f->label = __('Cache Directory');
+        $f->notes = __("Default is the Processwire asset cache/module-release-notes");
+        $f->attr('value', $data['cacheDirectory']);
+        $cache_config->add($f);
+
+        if ($cached_file_count) {
+            $f = $modules->get('InputfieldMarkup');
+            $f->attr('name', 'cachedFiles');
+            $f->label = sprintf(__('Cached Content List (%u)'), $cached_file_count);
+            $f->attr('value', '<div class="release-notes"><pre>' . implode("\n", $cached_files) . '</pre></div>');
+            $f->collapsed = Inputfield::collapsedYes;
+            $cache_config->add($f);
+
+            $f = $modules->get('InputfieldRadios');
+            $f->attr('name', 'clearCache');
+            $f->label = __('Clear the cached files on Submit of this page?');
+            $f->addOption(0, __('No, keep them.'));
+            $f->addOption(1, __('Yes, get rid of them.'));
+            $f->attr('value', 0);
+            $cache_config->add($f);
+        }
+
+        $fields->add($cache_config);
 
         return $fields;
     }
