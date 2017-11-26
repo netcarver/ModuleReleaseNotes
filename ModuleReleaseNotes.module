@@ -8,16 +8,6 @@
  *
  * http://processwire.com
  *
- * DONE
- * ----
- * - Move support for GitHub into repo-host abstraction
- * - Add support for situation where local install version > published version.
- *   Could try displaying local changelog file (if any, as it is likely to be more current than remote one)
- * - Use capabilities flags
- * - Add caching to help circumvent hitting hosting service API rate limits
- * - Add support for Gitlab hosted repositories via repo-host abstraction
- * - Add support for BitBucket hosted repositories via repo-host abstraction
- *
  * TODO
  * ----
  * - Add paging to API result fetches
@@ -26,6 +16,7 @@
  * Known Issues
  * ------------
  *
+ *  Need to decide on my own changelog format. Will probably end up being a simplified version of Keep a Changelog.
  */
 
 require_once 'FileCache.php';
@@ -44,7 +35,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.9.2',
+            'version'   => '0.10.0',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,

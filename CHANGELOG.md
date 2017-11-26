@@ -1,6 +1,6 @@
 # **Changelog** - [Keep a Changelog]
 
-## [Upcoming]
+## [0.10.0] - 2017-11-26
 - Repo access code into separate adaptor classes that implement the GitRepository Interface.
 - Added Github interface.
 - Added basic BitBucket interface (WIP).
@@ -9,9 +9,9 @@
 - Grouped config inputs into sections on the config screen.
 - Changed the Show more/Show all buttons to use current theme styles. Thanks @matjazp.
 - Remove Semantic versioning from changelog - not quite ready for it yet.
-- Attempt to fix "prism cannot be unloaded" issue.
 - Simplifiy changelog formatting.
 - Add result caching with config settings.
+- Bugfix: don't load Prism when only checking if it is installed. Thanks @matjazp.
 
 
 ## [0.9.2] - 2017-11-22
@@ -163,7 +163,8 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.2...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.0...HEAD
+[0.10.0]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.2...0.10.0
 [0.9.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.1...0.9.2
 [0.9.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.8.1...0.9.0
