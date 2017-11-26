@@ -1,28 +1,21 @@
 <?php namespace Netcarver;
 
-require_once 'FileCache.php';
 require_once 'GitRepositoryInterface.php';
+require_once 'GitRepositoryAdaptor.php';
 
 
 /**
  *
  */
-class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterface {
+class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepositoryInterface {
 
-    // Per-instance data...
-    protected $remote  = null;
-    protected $owner   = null;
-    protected $repo    = null;
-    protected $http    = null;
-    protected $tags    = null;
-    protected $headers = [];
 
     // Data common across all instances...
     static protected $info = [
         'name'         => 'Github',
         'icon'         => '<i class="fa fa-icon fa-github"></i>', // Fontawesome icon markup
         'limit'        => 60,
-        'remaining'    => 0,
+        'remaining'    => 60,
         'reset'        => 0,
         'capabilities' => [
             'tags',
@@ -62,6 +55,9 @@ class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterfac
         $repo  = '';
         $m     = [];
 
+        if (array_key_exists('debug', $options)) {
+            $this->debug($options['debug']);
+        }
         if (array_key_exists('cache_dir', $options)) {
             $this->setCacheDirectory($options['cache_dir']);
         } else {
@@ -116,9 +112,10 @@ class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterfac
             }
             $encoded_version = '/tags/' . rawurlencode($version);
         }
-        $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/releases$encoded_version";
-        $reply = $this->RepositoryRead($url);
-        if(200 == $this->http->getHttpCode() && !empty($reply['body'])) {
+        $url       = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/releases$encoded_version";
+        $http_code = null;
+        $reply = $this->RepositoryRead($url, $http_code);
+        if ((200 == $http_code || 304 == $http_code) && !empty($reply['body'])) {
             return $reply['body'];
         }
 
@@ -126,12 +123,15 @@ class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterfac
     }
 
 
+    /**
+     *
+     */
     public function GetTags() {
         if (null === $this->tags) {
-            $url   = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/git/refs/tags";
-            $reply = $this->RepositoryRead($url);
-            $code  = $this->http->getHttpCode();
-            if(200 == $code || 304 == $code) {
+            $url       = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/git/refs/tags";
+            $http_code = null;
+            $reply     = $this->RepositoryRead($url, $http_code);
+            if (200 == $http_code || 304 == $http_code) {
                 $result = [];
                 $num = count($reply);
                 if ($num) {
@@ -187,8 +187,8 @@ class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterfac
             if ($slice > 30) $slice = 30;
         }
 
-        $reply     = $this->RepositoryRead($url);
-        $http_code = $this->http->getHttpCode();
+        $http_code = null;
+        $reply = $this->RepositoryRead($url, $http_code);
         if(200 == $http_code || 304 == $http_code) {
             if ($slice) {
                 $repo_url = null;
@@ -216,19 +216,14 @@ class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterfac
     }
 
 
+    /**
+     *
+     */
     public function GetChangelog() {
-        $url = "https://raw.githubusercontent.com/{$this->encoded_owner}/{$this->encoded_repo}/master/CHANGELOG.md";
-        return $this->RepositoryRead($url, false);
-    }
-
-
-
-    public function GetForks($sort) {
-        if (!in_array($sort, ['newest', 'oldest', 'watchers'])) {
-            $sort = 'newest';
-        }
-        $url = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/forks?sort=$sort&page=1";
-        return $this->RepositoryRead($url);
+        $url       = "https://raw.githubusercontent.com/{$this->encoded_owner}/{$this->encoded_repo}/master/CHANGELOG.md";
+        $http_code = null;
+        $reply     = $this->RepositoryRead($url, $http_code, false);
+        return $reply;
     }
 
 
@@ -236,76 +231,31 @@ class GithubRepositoryAdaptor extends FileCache implements GitRepositoryInterfac
     /**
      *
      */
-    protected function RepositoryRead($url, $json = true) {
-        $reply    = null;
-        $etag     = null;
-        $last_mod = null;
-        $headers  = $this->headers;
-        $key      = $this->urlToKey($url);
-        $entry    = $this->getEntryForKey($key);
-        if ($entry) {
-            $reply    = $entry['reply'];
-            $etag     = $entry['etag'];
-            $last_mod = $entry['last_mod'];
+    public function GetForks($sort) {
+        if (!in_array($sort, ['newest', 'oldest', 'watchers'])) {
+            $sort = 'newest';
         }
-
-        if ($etag) {
-            $headers['If-None-Match'] = $etag;
-        } elseif ($last_mod) {
-            $headers['If-Modified-Since'] = $last_mod;
-        }
-        $this->http->setHeaders($headers);
-
-        $new_reply        = ($json) ? $this->http->getJson($url) : $this->http->get($url);
-        $http_code        = $this->http->getHttpCode();
-        $response_headers = $this->http->getResponseHeaders();
-        if (isset($response_headers['x-ratelimit-remaining'])) {
-            self::$info['remaining'] = $response_headers['x-ratelimit-remaining'];
-            self::$info['limit']     = $response_headers['x-ratelimit-limit'];
-            self::$info['reset']     = $response_headers['x-ratelimit-reset'];
-        }
-
-        switch ($http_code) {
-        case 200:
-            /**
-             * Cache miss, but we now have the values from the headers and body that we can store in the cache.
-             */
-            $entry['etag']     = @$response_headers['etag'];
-            $entry['last_mod'] = @$response_headers['Last-Modified'];
-            $entry['reply']    = $new_reply;
-            $this->setEntryForKey($key, $entry);
-            $reply = $new_reply;
-            break;
-
-        case 301:
-            /**
-             * Permanent redirect from GH.
-             */
-            $new_url = $response_headers['Location'];
-            break;
-
-        case 302:
-        case 307:
-            /**
-             * Temporary redirect from GH. Try again - once.
-             */
-            $new_url = $response_headers['Location'];
-            break;
-
-        case 304:
-            /**
-             * Cache hit! File contents are already in the cache!
-             */
-            break;
-
-        case 403:
-        case 404:
-            /**
-             * No such resource. Should we cache the 404 with a timeout?
-             */
-            break;
-        }
-
+        $url       = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/forks?sort=$sort&page=1";
+        $http_code = null;
+        $reply     = $this->RepositoryRead($url, $http_code);
         return $reply;
     }
+
+
+    /**
+     * Override the postRead() function from the base class.
+     *
+     * For github, we use this to record the remaining reads from the reply headers.
+     */
+    protected function postRead(array $data) {
+        parent::postRead($data);
+        $reply_headers = $data['reply_headers'];
+        if (isset($reply_headers['x-ratelimit-remaining'])) {
+            self::$info['remaining'] = $reply_headers['x-ratelimit-remaining'];
+            self::$info['limit']     = $reply_headers['x-ratelimit-limit'];
+            self::$info['reset']     = $reply_headers['x-ratelimit-reset'];
+        }
+    }
+
+
 }

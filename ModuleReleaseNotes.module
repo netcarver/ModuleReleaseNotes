@@ -14,14 +14,14 @@
  * - Add support for situation where local install version > published version.
  *   Could try displaying local changelog file (if any, as it is likely to be more current than remote one)
  * - Use capabilities flags
+ * - Add caching to help circumvent hitting hosting service API rate limits
+ * - Add support for Gitlab hosted repositories via repo-host abstraction
+ * - Add support for BitBucket hosted repositories via repo-host abstraction
  *
  * TODO
  * ----
- * - Add caching to help circumvent hitting hosting service API rate limits
  * - Add paging to API result fetches
  * - Add public data-access API for other modules to use
- * - Add support for Gitlab hosted repositories via repo-host abstraction
- * - Add support for BitBucket hosted repositories via repo-host abstraction
  *
  * Known Issues
  * ------------
@@ -895,7 +895,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         if ($cached_file_count) {
             $f = $modules->get('InputfieldMarkup');
             $f->attr('name', 'cachedFiles');
-            $f->label = sprintf(__('Cached File List (%u)'), $cached_file_count);
+            $f->label = sprintf(__('Cached Content List (%u)'), $cached_file_count);
             $f->attr('value', '<div class="release-notes"><pre>' . implode("\n", $cached_files) . '</pre></div>');
             $f->collapsed = Inputfield::collapsedYes;
             $cache_config->add($f);

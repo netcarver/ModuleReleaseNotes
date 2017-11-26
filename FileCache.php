@@ -16,6 +16,7 @@ class FileCache {
         } else {
             $this->cache_dir = dirname(__FILE__) . "/cache";
         }
+//\TD::barDump("Cache Location Set [{$this->cache_dir}]");
     }
 
 
@@ -41,6 +42,7 @@ class FileCache {
             throw new \Exception("Cache directory is invalid or unreadable.");
         }
         $location = "{$this->cache_dir}/$key";
+//\TD::barDump("Location $location");
         return $location;
     }
 
@@ -53,7 +55,7 @@ class FileCache {
         $file  = $this->keyToStorageLocation($key);
         $entry = @file_get_contents($file);
         if ($entry) {
-            if ((strncmp($entry, "\x1F\x8B", 2) === 0) && is_callable('gzinflate')) {
+            if (is_callable('gzinflate')) {
                 $entry = gzinflate($entry);
             }
             $entry = json_decode($entry, true);

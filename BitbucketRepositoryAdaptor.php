@@ -1,22 +1,12 @@
 <?php namespace Netcarver;
 
-require_once 'FileCache.php';
 require_once 'GitRepositoryInterface.php';
+require_once 'GitRepositoryAdaptor.php';
 
 
 /**
- * TODO
- * ====
  */
-class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInterface {
-
-    // Per-instance data...
-    protected $remote  = null;
-    protected $owner   = null;
-    protected $repo    = null;
-    protected $http    = null;
-    protected $tags    = null;
-    protected $headers = [];
+class BitbucketRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepositoryInterface {
 
     // Data common across all instances...
     static protected $info = [
@@ -63,6 +53,9 @@ class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInter
         $repo  = '';
         $m     = [];
 
+        if (array_key_exists('debug', $options)) {
+            $this->debug($options['debug']);
+        }
         if (array_key_exists('cache_dir', $options)) {
             $this->setCacheDirectory($options['cache_dir']);
         } else {
@@ -87,14 +80,13 @@ class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInter
 
     public function GetTags() {
         if (null === $this->tags) {
-            $url   = "https://api.bitbucket.org/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/refs/tags";
-            $reply = $this->RepositoryRead($url);
-            $code  = $this->http->getHttpCode();
-            if(200 == $code || 304 == $code) {
+            $url       = "https://api.bitbucket.org/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/refs/tags";
+            $http_code = null;
+            $reply     = $this->RepositoryRead($url, $http_code);
+            if (200 == $http_code || 304 == $http_code) {
                 $result = [];
                 $num = count($reply['values']);
                 if ($num) {
-//\TD::barDump($reply['values'], "Raw Tag List");
                     foreach ($reply['values'] as $tagref) {
                         $sha = $tagref['object']['hash'];
                         $tag = str_replace('refs/tags/', '', $tagref['ref']);
@@ -102,7 +94,6 @@ class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInter
                     }
                 }
                 $this->tags = $result;
-//\TD::barDump($result, "Processed Tag List");
             }
         }
         return $this->tags;
@@ -148,9 +139,9 @@ class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInter
             if ($slice > 30) $slice = 30;
         }
 
-        $reply     = $this->RepositoryRead($url);
-        $http_code = $this->http->getHttpCode();
-        if(200 == $http_code || 304 == $http_code) {
+        $http_code = null;
+        $reply     = $this->RepositoryRead($url, $http_code);
+        if (200 == $http_code || 304 == $http_code) {
             if ($slice) {
                 $repo_url = null;
                 $commits  = array_slice($reply['values'], 0, $slice);
@@ -184,7 +175,8 @@ class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInter
      */
     public function GetChangelog() {
         $url = "https://api.bitbucket.com/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/src/HEAD/CHANGELOG.md";
-        return $this->RepositoryRead($url, false);
+        $http_code = null;
+        return $this->RepositoryRead($url, $http_code, false);
     }
 
 
@@ -196,89 +188,9 @@ class BitbucketRepositoryAdaptor extends FileCache implements GitRepositoryInter
         if (!in_array($sort, ['newest', 'oldest', 'watchers'])) {
             $sort = 'newest';
         }
-        //$url = "https://api.bitbucket.org/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/forks?sort=$sort&page=1";
-        $url = "https://api.bitbucket.org/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/forks";
-        return $this->RepositoryRead($url);
+        $url       = "https://api.bitbucket.org/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/forks";
+        $http_code = null;
+        return $this->RepositoryRead($url, $http_code);
     }
 
-
-
-    /**
-     *
-     */
-    protected function RepositoryRead($url, $json = true) {
-        $reply    = null;
-        $etag     = null;
-        $last_mod = null;
-        $headers  = $this->headers;
-        $key      = $this->urlToKey($url);
-        $entry    = $this->getEntryForKey($key);
-        if ($entry) {
-            $reply    = $entry['reply'];
-            $etag     = $entry['etag'];
-            $last_mod = $entry['last_mod'];
-        }
-
-        if ($etag) {
-            $headers['If-None-Match'] = $etag;
-        } elseif ($last_mod) {
-            $headers['If-Modified-Since'] = $last_mod;
-        }
-        $this->http->setHeaders($headers);
-
-        $new_reply        = ($json) ? $this->http->getJson($url) : $this->http->get($url);
-        $http_code        = $this->http->getHttpCode();
-        $response_headers = $this->http->getResponseHeaders();
-        $d = [
-            'url'  => $url,
-            'req_headers' => $headers,
-            'code' => $http_code,
-            'rep_headers' => $response_headers,
-            'reply' => $new_reply,
-            ];
-//\TD::barDump($d, 'Read Summary');
-
-        switch ($http_code) {
-        case 200:
-            /**
-             * Cache miss, but we now have the values from the headers and body that we can store in the cache.
-             */
-            $entry['etag']     = @$response_headers['etag'];
-            $entry['last_mod'] = @$response_headers['Last-Modified'];
-            $entry['reply']    = $new_reply;
-            $this->setEntryForKey($key, $entry);
-            $reply = $new_reply;
-            break;
-
-        case 301:
-            /**
-             * Permanent redirect from GH.
-             */
-            $new_url = $response_headers['Location'];
-            break;
-
-        case 302:
-        case 307:
-            /**
-             * Temporary redirect from GH. Try again - once.
-             */
-            $new_url = $response_headers['Location'];
-            break;
-
-        case 304:
-            /**
-             * Cache hit! File contents are already in the cache!
-             */
-            break;
-
-        case 403:
-        case 404:
-            /**
-             * No such resource. Should we cache the 404 with a timeout?
-             */
-            break;
-        }
-
-        return $reply;
-    }
 }
