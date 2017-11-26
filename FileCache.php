@@ -24,8 +24,8 @@ class FileCache {
      *
      */
     protected function urlToKey($url) {
-        $key = str_replace('https://', '', strtolower($url));
-        $key = str_replace(['/',':','?','#', '%'], '-', $key);
+        $p = parse_url($url);
+        $key = $p['host'] . str_replace('/', '-', $p['path']);
         return $key;
     }
 

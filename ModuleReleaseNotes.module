@@ -160,11 +160,11 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $cache_dir   = self::cacheLocation($this->cacheDirectory);
 
         if (false !== stripos($remote, '://github.com')) {
-            require_once 'GithubInterface.php';
-            $client = new \Netcarver\GithubInterface($http, $remote, $application, ['cache_dir' => $cache_dir]);
+            require_once 'GithubRepositoryAdaptor.php';
+            $client = new \Netcarver\GithubRepositoryAdaptor($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://bitbucket.org')) {
-            require_once 'BitbucketInterface.php';
-            $client = new \Netcarver\BitbucketInterface($http, $remote, $application, ['cache_dir' => $cache_dir]);
+            require_once 'BitbucketRepositoryAdaptor.php';
+            $client = new \Netcarver\BitbucketRepositoryAdaptor($http, $remote, $application, ['cache_dir' => $cache_dir]);
         } else if (false !== stripos($remote, '://gitlab.com')) {
             // TODO develop gitlab client
         }
