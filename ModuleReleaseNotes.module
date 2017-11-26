@@ -36,7 +36,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
     protected $github_read_info = null;
     protected $repo_client = null;
-    protected $prism = null;
     protected $taglist = null;
 
 
@@ -208,7 +207,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
          * commit messages to the download confirmation form.
          */
         $this->addHookAfter("ProcessModule::buildDownloadConfirmForm", function($event) {
-            $this->prism     = $this->modules->get('TextformatterPrism');
             $info            = $event->arguments[0];
             $module_class    = $info['class_name'];
             $current_info    = $this->modules->getModuleInfo($module_class);
@@ -439,7 +437,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
          * installation. This allows access to a level of help for modules that wasn't there before.
          */
         $this->addHookAfter("ProcessModule::executeEdit", function($event) {
-            $this->prism  = $this->modules->get('TextformatterPrism');
             $info         = null;
             $module_class = '';
             $append_info  = false;
@@ -608,8 +605,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             }
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = __('HTML Purifier');
-            if ($this->prism && $this->usePrismIfAvailable) {
-                $this->prism->format($content);
+            if ($this->usePrismIfAvailable && $this->modules->isInstalled('TextformatterPrism')) {
+                $this->modules->get('TextformatterPrism')->format($content);
                 $transforms[] = __('Prism Code Highlighter');
             }
             $content = $this->changeH1toH2($content);
@@ -833,7 +830,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $f->columnWidth = 50;
         $module_config->add($f);
 
-        if ($modules->get('TextformatterPrism')) {
+        if ($modules->isInstalled('TextformatterPrism')) {
             $f = $modules->get('InputfieldRadios');
             $f->attr('name', 'usePrismIfAvailable');
             $f->label = __('Use PRISM code formatting - if possible?');
