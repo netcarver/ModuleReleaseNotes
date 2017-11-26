@@ -880,7 +880,14 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $cache->clearCache();
             $cached_files = [];
         } else {
-            $cached_files = array_map(function($i) use ($cache_dir) {return str_replace("$cache_dir/", '', $i);}, $cache->getCachedFiles());
+            $locale = localeconv();
+            $cached_files = array_map(
+                function($i) use ($cache_dir, $locale) {
+                    $size = number_format(filesize($i), 0, $locale['decimal_point'], $locale['thousands_sep']);
+                    return htmlspecialchars(str_replace("$cache_dir/", '', $i)."  ($size bytes)");
+                },
+                $cache->getCachedFiles()
+            );
         }
 
         $cached_file_count = count($cached_files);
