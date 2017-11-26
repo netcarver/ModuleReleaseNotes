@@ -53,7 +53,7 @@ class FileCache {
         $file  = $this->keyToStorageLocation($key);
         $entry = @file_get_contents($file);
         if ($entry) {
-            if (is_callable('gzinflate')) {
+            if ((strncmp($entry, "\x1F\x8B", 2) === 0) && is_callable('gzinflate')) {
                 $entry = gzinflate($entry);
             }
             $entry = json_decode($entry, true);
@@ -70,9 +70,33 @@ class FileCache {
     protected function setEntryForKey($key, $entry) {
         $file  = $this->keyToStorageLocation($key);
         $entry = json_encode($entry);
+
         if (is_callable('gzdeflate')) {
             $entry = gzdeflate($entry);
         }
         file_put_contents($file, $entry);
+    }
+
+
+    /**
+     *
+     */
+    public function getCachedFiles() {
+        return glob($this->cache_dir."/*");
+    }
+
+
+    /**
+     *
+     */
+    public function clearCache() {
+        $files = $this->getCachedFiles();
+        if (count($files)) {
+            foreach($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+        }
     }
 }

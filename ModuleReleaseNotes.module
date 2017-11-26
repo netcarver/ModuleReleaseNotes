@@ -28,6 +28,8 @@
  *
  */
 
+require_once 'FileCache.php';
+
 
 class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
@@ -65,6 +67,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'wordWrapColumn'        => 90,
             'breakingPhrases'       => 'BreakingChange, Breaking Change, Breaking-Change',
             'usePrismIfAvailable'   => 0,
+            'cacheDirectory'        => 'module-release-notes',
         ];
     }
 
@@ -137,6 +140,16 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
 
+
+    static protected function cacheLocation($cache_name) {
+        $cache_dir = realpath(wire('config')->paths->cache);
+        $cache_dir = "{$cache_dir}/$cache_name";
+        if (!is_dir($cache_dir) && !mkdir($cache_dir)) {
+            throw new \Exception(sprintf(__("Could not create cache directory at %s, is the assets directory writable?"), $cache_dir));
+        }
+        return $cache_dir;
+    }
+
     protected function getClientForRepo($remote) {
         $m = [];
         preg_match('~https?://(.+?)/~i', $remote, $m);
@@ -144,11 +157,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $http = new WireHttp();
         $http->setTimeout(2);
         $application = 'PW-Module-Release-Notes';
-        $cache_dir = realpath($this->config->paths->cache);
-        $cache_dir = "{$cache_dir}/module-release-notes";
-        if (!is_dir($cache_dir) && !mkdir($cache_dir)) {
-            throw new \Exception(sprintf(__("Could not create cache directory at %s, is the assets directory writable?"), $cache_dir));
-        }
+        $cache_dir   = self::cacheLocation($this->cacheDirectory);
 
         if (false !== stripos($remote, '://github.com')) {
             require_once 'GithubInterface.php';
@@ -401,7 +410,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'commit-log';
-                $field->label = $this->data['fallbackCommitHistory'] . ' ' . __("Most Recent Commits");
+                $field->label = sprintf(__("Last %s Commits, most recent first."), $this->data['fallbackCommitHistory']);
                 if (!$has_latest_commits) {
                     $field->notes = __('Please ask the author to add support for one of the above options, as this list is simply the most recent Git commit message log. Adding and maintaining a ```CHANGELOG.md``` file is a step-up. Tagging git commits at each new version is better still, as it allows automatic diffing between versions. If on Github, using the Releases feature is a nice step up.');
                 }
@@ -854,6 +863,53 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $common_config->add($f);
 
         $fields->add($common_config);
+
+
+        $cache_config = $modules->get("InputfieldFieldset");
+        $cache_config->label = __('Cache Options');
+        $cache_config->collapsed = Inputfield::collapsedYes;
+
+        $cache     = new \Netcarver\FileCache();
+        $cache_dir = self::cacheLocation($data['cacheDirectory']);
+        $cache->setCacheDirectory($cache_dir);
+
+        /**
+         * Clear out the cached files when requested to
+         */
+        if (isset($_POST['clearCache']) && $_POST['clearCache'] == 1) {
+            $cache->clearCache();
+            $cached_files = [];
+        } else {
+            $cached_files = array_map(function($i) use ($cache_dir) {return str_replace("$cache_dir/", '', $i);}, $cache->getCachedFiles());
+        }
+
+        $cached_file_count = count($cached_files);
+
+        $f = $modules->get('InputfieldText');
+        $f->attr('name', 'cacheDirectory');
+        $f->label = __('Cache Directory');
+        $f->notes = __("Default is the Processwire asset cache/module-release-notes");
+        $f->attr('value', $data['cacheDirectory']);
+        $cache_config->add($f);
+
+        if ($cached_file_count) {
+            $f = $modules->get('InputfieldMarkup');
+            $f->attr('name', 'cachedFiles');
+            $f->label = sprintf(__('Cached File List (%u)'), $cached_file_count);
+            $f->attr('value', '<div class="release-notes"><pre>' . implode("\n", $cached_files) . '</pre></div>');
+            $f->collapsed = Inputfield::collapsedYes;
+            $cache_config->add($f);
+
+            $f = $modules->get('InputfieldRadios');
+            $f->attr('name', 'clearCache');
+            $f->label = __('Clear the cached files on Submit of this page?');
+            $f->addOption(0, __('No, keep them.'));
+            $f->addOption(1, __('Yes, get rid of them.'));
+            $f->attr('value', 0);
+            $cache_config->add($f);
+        }
+
+        $fields->add($cache_config);
 
         return $fields;
     }
