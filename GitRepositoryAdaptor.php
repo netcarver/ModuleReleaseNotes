@@ -5,9 +5,10 @@ require_once 'FileCache.php';
 /**
  *
  */
-class GitRepositoryAdaptor extends FileCache {
+class GitRepositoryAdaptor {
 
     // Per-instance data...
+    protected $cache   = null;
     protected $remote  = null;
     protected $owner   = null;
     protected $repo    = null;
@@ -52,8 +53,8 @@ class GitRepositoryAdaptor extends FileCache {
         $etag     = null;
         $last_mod = null;
         $headers  = $this->headers;
-        $key      = $this->urlToKey($url);
-        $entry    = $this->getEntryForKey($key);
+        $key      = $this->cache->urlToKey($url);
+        $entry    = $this->cache->getEntryForKey($key);
         if ($entry) {
             $reply    = $entry['reply'];
             $etag     = $entry['etag'];
@@ -95,7 +96,7 @@ class GitRepositoryAdaptor extends FileCache {
             $entry['etag']     = @$response_headers['etag'];
             $entry['last_mod'] = @$response_headers['Last-Modified'];
             $entry['reply']    = $new_reply;
-            $this->setEntryForKey($key, $entry);
+            $this->cache->setEntryForKey($key, $entry);
             $reply = $new_reply;
             break;
 
@@ -127,13 +128,12 @@ class GitRepositoryAdaptor extends FileCache {
             /**
              * No such resource.
              */
-            $cache_for = 2;
+            $cache_for = 15;
             $reply = null;
             $entry['etag']     = '404';
-            $entry['last_mod'] = time() + ($cache_for * 60); // Cache 404s for 10 minutes TODO set to 600 before commit. NO COMMIT
+            $entry['last_mod'] = time() + ($cache_for * 60); // Cache 404s for n minutes
             $entry['reply']    = null;
-            $this->setEntryForKey($key, $entry);
-\TD::barDump(sprintf("Caching returned 404 for %u minutes.", $cache_for));
+            $this->cache->setEntryForKey($key, $entry);
             break;
         }
 

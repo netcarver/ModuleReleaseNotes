@@ -57,7 +57,8 @@ class BitbucketRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepo
             $this->debug($options['debug']);
         }
         if (array_key_exists('cache_dir', $options)) {
-            $this->setCacheDirectory($options['cache_dir']);
+            $this->cache = new \Netcarver\FileCache();
+            $this->cache->setCacheDirectory($options['cache_dir']);
         } else {
             throw new \Exception('Cache directory is needed.');
         }

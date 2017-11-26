@@ -1,14 +1,17 @@
 # **Changelog** - [Keep a Changelog]
 
 ## [Upcoming]
-### Added
-- Sections to the config screen
-
-### Changed
-- Show more/Show all buttons to use current theme styles. Thanks @matjazp.
-
-### Removed
-- Semantic versioning from changelog - not quite ready for it yet.
+- Repo access code into separate adaptor classes that implement the GitRepository Interface.
+- Added Github interface.
+- Added basic BitBucket interface (WIP).
+- Added capabilities flags to the repo interface.
+- Rework the Update screen code to use the new interfaces.
+- Grouped config inputs into sections on the config screen.
+- Changed the Show more/Show all buttons to use current theme styles. Thanks @matjazp.
+- Remove Semantic versioning from changelog - not quite ready for it yet.
+- Attempt to fix "prism cannot be unloaded" issue.
+- Simplifiy changelog formatting.
+- Add result caching with config settings.
 
 
 ## [0.9.2] - 2017-11-22

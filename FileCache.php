@@ -24,7 +24,7 @@ class FileCache {
     /**
      *
      */
-    protected function urlToKey($url) {
+    public function urlToKey($url) {
         $p = parse_url($url);
         $key = $p['host'] . str_replace('/', '-', $p['path']);
         return $key;
@@ -51,7 +51,7 @@ class FileCache {
     /**
      *
      */
-    protected function getEntryForKey($key) {
+    public function getEntryForKey($key) {
         $file  = $this->keyToStorageLocation($key);
         $entry = @file_get_contents($file);
         if ($entry) {
@@ -69,7 +69,7 @@ class FileCache {
     /**
      *
      */
-    protected function setEntryForKey($key, $entry) {
+    public function setEntryForKey($key, $entry) {
         $file  = $this->keyToStorageLocation($key);
         $entry = json_encode($entry);
 
