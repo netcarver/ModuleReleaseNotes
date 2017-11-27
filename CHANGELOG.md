@@ -1,5 +1,8 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.10.1] - 2017-11-27
+- Fix warning message. Thanks @matjazp.
+
 ## [0.10.0] - 2017-11-26
 - Repo access code into separate adaptor classes that implement the GitRepository Interface.
 - Added Github interface.
@@ -163,7 +166,8 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.0...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...HEAD
+[0.10.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.0...0.10.1
 [0.10.0]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.2...0.10.0
 [0.9.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.1...0.9.2
 [0.9.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.0...0.9.1

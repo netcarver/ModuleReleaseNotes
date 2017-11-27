@@ -35,7 +35,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         return [
             'title'     => __('Module Release Notes'),
             'summary'   => __("Discovers and shows what has changed with each module version."),
-            'version'   => '0.10.0',
+            'version'   => '0.10.1',
             'author'    => 'S Dickinson (netcarver)',
             'autoload'  => 'template=admin',
             'singular'  => true,
@@ -233,7 +233,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'release-notes release-notes-warning';
                 $field->label = __("Version Downgrade Warning");
-                $field->value = "<div class=warning>" . sprintf(__("The version currently installed may be more developed than the one you are about to install.<br>If you continue, you may loose some functionality or experience problems."), $current_version, $new_version) . "</div>";
+                $field->value = "<div class=warning>" . sprintf(__("The version currently installed may be more developed than the one you are about to install. If you continue, you may lose some functionality or experience problems."), $current_version, $new_version) . "</div>";
                 $wrapper->add($field);
                 $return_info->children->insertAfter($wrapper, $children[0]);
                 return;
