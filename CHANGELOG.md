@@ -1,5 +1,10 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.10.2]
+- Do not display entire Changelog for modules when installing on a site for the first time. Limit height and add the
+  show more button.
+- Improve messages regarding missing, or feature-poor, repository adaptors.
+
 ## [0.10.1] - 2017-11-27
 - Fix warning message. Thanks @matjazp.
 
@@ -167,6 +172,7 @@
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
 [Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...HEAD
+[0.10.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...0.10.2
 [0.10.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.0...0.10.1
 [0.10.0]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.2...0.10.0
 [0.9.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.9.1...0.9.2
