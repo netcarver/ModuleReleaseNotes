@@ -245,7 +245,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field = $this->modules->get('InputfieldMarkup');
                 $field->name = 'release-notes release-notes-warning';
                 $field->label = __("Unsupported Remote Repository Host");
-                $field->value = "<div class=warning>" . sprintf(__("Sorry, I don't know how to connect to the git hosting service at %s. Please let my author know about this!"), $client) . "</div>";
+                $field->value = "<div class=warning>" . sprintf(__("Sorry, ModuleReleaseNotes doesn't know how to connect to the git hosting service at %s. Please let Netcarver know about this by posting <a href='https://processwire.com/talk/topic/17767-module-release-notes/'>on the PW forum.</a>"), $client) . "</div>";
                 $wrapper->add($field);
                 $return_info->children->insertAfter($wrapper, $children[0]);
                 return;
@@ -264,7 +264,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $field->name = 'release-notes release-notes-warning';
                 $field->label = __("Impotent Repository Adaptor");
                 $needed = 'release-notes, tag-to-tag-commits, changelog-access, commits';
-                $field->value = "<div class=warning>" . sprintf(__("Sorry, but the %s client adaptor doesn't have any of the needed query capabilities [%s]"), $client_info['name'], $needed) . "</div>";
+                $field->value = "<div class=warning>" . sprintf(__("Sorry, but the %s client adaptor for ModuleReleaseNotes doesn't have any of the needed query capabilities [%s]"), $client_info['name'], $needed) . "</div>";
                 $wrapper->add($field);
                 $return_info->children->insertAfter($wrapper, $children[0]);
                 return;
