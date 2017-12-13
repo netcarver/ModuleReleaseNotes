@@ -200,21 +200,19 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $this->addHookAfter("ProcessModule::buildDownloadConfirmForm", function($event) {
             $info            = $event->arguments[0];
             $module_class    = $info['class_name'];
-            $current_info    = $this->modules->getModuleInfo($module_class);
-            $current_version = $current_info['version'];
-            $new_version     = $info['module_version']; // This is a string.
+            $current_info    = $this->modules->getModuleInfoVerbose($module_class);
+            $current_version = $current_info['versionStr']; // This is a string.
+            $new_version     = $info['module_version'];     // This is a string.
             $remote          = $info['project_url'];
             $remote_icon     = '<i class="fa fa-icon fa-external-link"></i>';
 
             $info['version_current'] = $current_version; // Push the current version into the $info
-            if (is_int($current_version)) {
-                $current_version = $this->modules->formatVersion($current_version); // Convert to string to allow comparisons
-            }
             $info['module_version_current'] = $current_version;
             $info['remote_icon'] = $remote_icon;
             ksort($info);
 
             $changes         = $current_version != $new_version;
+
             $version_order   = version_compare($current_version, $new_version);
             if ($version_order == 0) {
                 return; // No change!
@@ -698,8 +696,6 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $changelog = trim(implode('', $parts));
             }
         }
-
-\TD::barDump("Current Version [$version] -> Latest Version [$latest_version]");
 
         $version_master_regex = @self::$cut_regexes[$type]['version'];
         if (!empty($version_master_regex) && '0.0.0' !== $version) {
