@@ -449,9 +449,10 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
             $dir = dirname(realpath($info['file']));
 
-            $append_info |= $this->addSupportFiles('readme',    'file-text-o',   $wrapper, $dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
-            $append_info |= $this->addSupportFiles('changelog', 'tags',          $wrapper, $dir.DIRECTORY_SEPARATOR."[Cc][Hh][Aa][Nn][Gg][Ee][Ll][Oo][Gg]*");
-            $append_info |= $this->addSupportFiles('license',   'balance-scale', $wrapper, $dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
+            $append_info |= $this->addSupportFiles('readme',        'file-text-o',   $wrapper, $dir.DIRECTORY_SEPARATOR."[Rr][Ee][Aa][Dd][Mm][Ee]*");
+            $append_info |= $this->addSupportFiles('documentation', 'file-text-o',   $wrapper, $dir.DIRECTORY_SEPARATOR."[Dd][Oo][Cc][Uu][Mm][Ee][Nn][Tt][Aa][Tt][Ii][Oo][Nn]*");
+            $append_info |= $this->addSupportFiles('changelog',     'tags',          $wrapper, $dir.DIRECTORY_SEPARATOR."[Cc][Hh][Aa][Nn][Gg][Ee][Ll][Oo][Gg]*");
+            $append_info |= $this->addSupportFiles('license',       'balance-scale', $wrapper, $dir.DIRECTORY_SEPARATOR."[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*");
 
             if ($append_info) {
                 $event->return = $outer_wrapper->render() . $event->return;
