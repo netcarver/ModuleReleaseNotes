@@ -1,5 +1,8 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.10.4] - 2017-12-13
+- Add files starting with "documentation" to the list of support file on the module information page. Thanks @adrianbj.
+
 ## [0.10.3] - 2017-12-13
 - Bugfix: Use the pre-formatted module version string from module information when comparing with the current version.
 - Remove stray debug entries.
@@ -179,6 +182,7 @@
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
 [Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...HEAD
+[0.10.4]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.3...0.10.4
 [0.10.3]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.2...0.10.3
 [0.10.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...0.10.2
 [0.10.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.0...0.10.1
