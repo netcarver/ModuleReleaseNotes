@@ -283,7 +283,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 $client_info = $client->GetInfo();
                 if (!empty($tmp_release_notes)) {
                     $release_notes_newtype = 'txt';
-                    $release_notes = $this->formatTextOfType('md', $tmp_release_notes, $fmt_note, $release_notes_newtype);
+                    $release_notes = $this->formatTextOfType('release-notes', 'md', $tmp_release_notes, $fmt_note, $release_notes_newtype);
                 } elseif (0 == $client_info['remaining']) {
                     $release_notes = $this->getReadDepletionMessage($client_info);
                 }
@@ -368,7 +368,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
                 if ($has_changelog_file) {
                     $field->label   = sprintf(__("Changelog from remote version %s"), $new_version);
                     $changelog_newtype = 'txt';
-                    $changelog_file = $this->formatTextOfType('md', $changelog_file, $fmt_note, $changelog_newtype);
+                    $changelog_file = $this->formatTextOfType('changelog', 'md', $changelog_file, $fmt_note, $changelog_newtype);
                     $changelog_file = $this->insertMarkerForVersion($current_version, $changelog_file, $changelog_newtype, $new_version);
                     $changelog_file = "<div class='release-notes release-notes-changelog'>$changelog_file</div>";
                     if ($this->config->debug) $field->notes = $fmt_note;
@@ -515,7 +515,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $content = file_get_contents($filename);
         if (false !== $content && !empty(trim($content))) {
             $tmpval  = $newtype;
-            $tmp     = $this->formatTextOfType($ext, $content, $transformation_applied, $tmpval);
+            $tmp     = $this->formatTextOfType(strtolower($filename), $ext, $content, $transformation_applied, $tmpval);
             $tmp     = self::addExpansionWrapper($tmp, __('Show All'), 'long', 'full-height');
             $newtype = $tmpval;
             return $tmp;
@@ -570,6 +570,34 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     }
 
 
+    /**
+     * Adds id attributes to heading 2 and heading 3 elements to allow documentation with a working table-of-contents.
+     *
+     * As there can be more than one documentation file per module, each table-of-contents id is prefixed with the name
+     * of the file in which it occurs.
+     *
+     * TODO: Work out how to guarantee unique ids when multiple documentation files may be present.
+     */
+    protected function applyIdToHeadings($filename, $content) {
+        $filename = str_replace(['---', '.'], '-', trim(wire('sanitizer')->pageName($filename), '-'));
+        $uplink   = " <a class='right-align small' href='#$filename-table-of-contents'>" . __('top') . " <i class='fa fa-icon fa-chevron-up'></i></a>";
+        $content  = preg_replace_callback("~<h([23])>([^<]*)</h[23]>~iU", function($matches) use ($filename, $uplink) {
+            $level   = $matches[1];
+            $content = $matches[2];
+            $id = trim(wire('sanitizer')->pageName($content), '-');
+            $id = str_replace('---', '-', $id);
+            if ('table-of-contents' !== $id) {
+                $link = $uplink;
+            } else {
+                $id = "$filename-table-of-contents";
+                $link = '';
+            }
+            $replace = "<h$level id='$id'>$content$link</h$level>";
+            return $replace;
+        }, $content);
+        return $content;
+    }
+
 
     /**
      * Tries to apply an appropriate textformatter to a given content string.
@@ -577,7 +605,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      *
      * It also records which formatter was applied.
      */
-    protected function formatTextOfType($ext, $unsafe_content, &$transformation_applied, &$newtype) {
+    protected function formatTextOfType($filename, $ext, $unsafe_content, &$transformation_applied, &$newtype) {
+        $filename   = basename($filename);
         $transforms = [];
         $reason     = '';
         $formatter  = self::getFormatterForFiletype($ext, $formatter_info);
@@ -587,18 +616,31 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             if (true && $formatter) {
                 // Attempt to use preferred formatter.
                 $formatter->formatValue(new \ProcessWire\Page(), new \ProcessWire\Field(), $unsafe_content);
-                $transforms[] = $formatter_info['type'];
+                $transforms[] = $formatter_info['type'] . ' (' . $formatter_info['use'] .')';
             } else {
                 // Fallback to using PW's own entitiesMarkdown sanitiser...
                 $unsafe_content = $this->sanitizer->entitiesMarkdown($unsafe_content, true);
                 $transforms[] = __('PW EntitiesMarkdown');
             }
+
+            // Always apply HTML purifier to the above as it has come from potentially unsafe input.
             $content = $this->sanitizeString($unsafe_content);
             $transforms[] = __('HTML Purifier');
+
+            // Conditionally apply automatic IDs to all headings in documentation files...
+            if (0 === stripos($filename, 'documentation')) {
+                $content = $this->applyIdToHeadings($filename, $content);
+                $transforms[] = __('Auto ID Headings');
+            }
+
+            // Conditionally apply Prism code formatting...
             if ($this->usePrismIfAvailable && $this->modules->isInstalled('TextformatterPrism')) {
                 $this->modules->get('TextformatterPrism')->format($content);
                 $transforms[] = __('Prism Code Highlighter');
             }
+
+            // Always demote any H1 heading to a classed H2 to prevent multiple H1s from being present and breaking the
+            // admin theme.
             $content = $this->changeH1toH2($content);
             $transforms[] = __('Demote h1 to h2');
             $newtype = 'html';
