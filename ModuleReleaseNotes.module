@@ -581,7 +581,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
     protected function applyIdToHeadings($filename, $content) {
         $filename = str_replace(['---', '.'], '-', trim(wire('sanitizer')->pageName($filename), '-'));
         $uplink   = " <a class='right-align small' href='#$filename-table-of-contents'>" . __('top') . " <i class='fa fa-icon fa-chevron-up'></i></a>";
-        $content  = preg_replace_callback("~<h([23])>([^<]*)</h[23]>~iU", function($matches) use ($filename, $uplink) {
+        $new_content = preg_replace_callback("~<h([23])>([^<]*)</h[23]>~iU", function($matches) use ($filename, $uplink) {
             $level   = $matches[1];
             $content = $matches[2];
             $id = trim(wire('sanitizer')->pageName($content), '-');
@@ -595,6 +595,9 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             $replace = "<h$level id='$id'>$content$link</h$level>";
             return $replace;
         }, $content);
+        if (is_string($new_content)) {
+            $content = $new_content;
+        }
         return $content;
     }
 
