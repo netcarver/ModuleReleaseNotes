@@ -1,7 +1,29 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.10.5] - 2017-12-16
+- Automatically add id attributes to all H2 and H3 headings in documentation.md files. This allows internal
+  tables-of-contents to work. **NB** This requires the link href to match the lowercased, hyphen-for-spaces, version of
+  the heading text.
+- Automatically add links back to the table of contents after each H2 or H3 heading. **NB** This requires you to have
+  your table of contents to start with an H2 or H3 element entitled _"Table Of Contents"_ - as shown in the example
+  above.
+```
+## Table Of Contents
+- [Link to H2 Section](#some-h2-section) // Stuff in parens. must match lowercase, hyphen-for-spaces, version of heading
+- [Link to H3 Section](#some-h3-section)
+...
+...
+## Some H2 Section // Id (of 'some-h2-section') and back-link to table-of-contents will be added to this heading.
+...
+### Some H3 Section
+...
+
+```
+
+
 ## [0.10.4] - 2017-12-13
 - Add files starting with "documentation" to the list of support file on the module information page. Thanks @adrianbj.
+
 
 ## [0.10.3] - 2017-12-13
 - Bugfix: Use the pre-formatted module version string from module information when comparing with the current version.
@@ -182,6 +204,7 @@
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
 [Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...HEAD
+[0.10.5]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.4...0.10.5
 [0.10.4]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.3...0.10.4
 [0.10.3]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.2...0.10.3
 [0.10.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...0.10.2
