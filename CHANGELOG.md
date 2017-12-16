@@ -5,20 +5,7 @@
   tables-of-contents to work. **NB** This requires the link href to match the lowercased, hyphen-for-spaces, version of
   the heading text.
 - Automatically add links back to the table of contents after each H2 or H3 heading. **NB** This requires you to have
-  your table of contents to start with an H2 or H3 element entitled _"Table Of Contents"_ - as shown in the example
-  above.
-```
-## Table Of Contents
-- [Link to H2 Section](#some-h2-section) // Stuff in parens. must match lowercase, hyphen-for-spaces, version of heading
-- [Link to H3 Section](#some-h3-section)
-...
-...
-## Some H2 Section // Id (of 'some-h2-section') and back-link to table-of-contents will be added to this heading.
-...
-### Some H3 Section
-...
-
-```
+  your table of contents to start with an H2 or H3 element entitled _"Table Of Contents"_.
 
 
 ## [0.10.4] - 2017-12-13
