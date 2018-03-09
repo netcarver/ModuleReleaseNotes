@@ -513,7 +513,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         if (empty($ext)) $ext = 'txt';
         $content = file_get_contents($filename);
-        if (false !== $content && !empty(trim($content))) {
+        if (false !== $content && false != trim($content)) {
             $tmpval  = $newtype;
             $tmp     = $this->formatTextOfType(strtolower($filename), $ext, $content, $transformation_applied, $tmpval);
             $tmp     = self::addExpansionWrapper($tmp, __('Show All'), 'long', 'full-height');
