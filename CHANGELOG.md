@@ -1,5 +1,15 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.10.7] - 2018-07-06
+- Update label for remote HEAD from "Latest" to "Remote"
+- Add missing section to changelog
+
+
+## [0.10.6] - 2018-03-18
+- Bugfix: Remove problematic render from codeblock.
+- PHP5.4 Compatibility.
+
+
 ## [0.10.5] - 2017-12-16
 - Automatically add id attributes to all H2 and H3 headings in documentation.md files. This allows internal
   tables-of-contents to work. **NB** This requires the link href to match the lowercased, hyphen-for-spaces, version of
@@ -190,7 +200,9 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.5...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.7...HEAD
+[0.10.7]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.6...0.10.7
+[0.10.6]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.5...0.10.6
 [0.10.5]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.4...0.10.5
 [0.10.4]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.3...0.10.4
 [0.10.3]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.2...0.10.3
