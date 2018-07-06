@@ -712,7 +712,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     protected function insertMarkerForVersion($version, $changelog, $type, $latest_version = false) {
-        $str_high = __("Latest");
+        $str_high = __("Remote");
         $str_low  = __("Installed");
         $pre       = '';
         $post      = '';
