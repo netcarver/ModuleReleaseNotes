@@ -190,7 +190,7 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.1...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.5...HEAD
 [0.10.5]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.4...0.10.5
 [0.10.4]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.3...0.10.4
 [0.10.3]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.2...0.10.3
