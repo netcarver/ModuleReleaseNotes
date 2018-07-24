@@ -110,7 +110,7 @@ class BitbucketRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepo
      * If the commits cannot be accessed, null is returned.
      */
     public function GetCommits($startref, $endref='HEAD') {
-        if (is_string($startref) && !empty(trim($startref))) {
+        if (is_string($startref) && ('' !== trim($startref))) {
             //
             // If we could not access any tags for this repo, then there will be no tag-to-tag commit.
             //

@@ -798,7 +798,8 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
         $f = wire('modules')->get('InputfieldMarkup');
         $f->name = $name;
         $f->label = $label;
-        if (!empty(trim($notes))) $f->notes = $notes;
+        $notes = trim($notes);
+        if (!empty($notes)) $f->notes = $notes;
         $f->value = $value;
         $f->collapsed = Inputfield::collapsedYes;
         $f->icon = $icon;
