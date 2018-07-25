@@ -1,5 +1,9 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.10.8] - 2018-07-24
+- PHP5.4 Compat part 2 - Thanks @Toutouwai.
+
+
 ## [0.10.7] - 2018-07-06
 - Update label for remote HEAD from "Latest" to "Remote"
 - Add missing section to changelog
@@ -7,7 +11,7 @@
 
 ## [0.10.6] - 2018-03-18
 - Bugfix: Remove problematic render from codeblock.
-- PHP5.4 Compatibility.
+- PHP5.4 Compatibility - Thanks @adrianbj.
 
 
 ## [0.10.5] - 2017-12-16
@@ -200,7 +204,8 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.7...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.8...HEAD
+[0.10.8]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.7...0.10.8
 [0.10.7]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.6...0.10.7
 [0.10.6]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.5...0.10.6
 [0.10.5]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.4...0.10.5
