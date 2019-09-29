@@ -37,7 +37,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             'summary'   => __("Discovers and shows what has changed with each module version."),
             'version'   => '0.11.0',
             'author'    => 'S Dickinson (netcarver)',
-            'autoload'  => 'template=admin',
+            'autoload'  => 'template=admin, process=ProcessModule',
             'singular'  => true,
             'permanent' => false,
             'requires'  => 'ProcessWire>=3.0.0, PHP>=5.4.0',
