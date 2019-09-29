@@ -1,4 +1,10 @@
-# **Changelog** - [Keep a Changelog]
+# **Changelog**
+
+[Keep a Changelog]
+
+## [0.11.1] - 2019-09-29
+- More specific loading in admin interface.
+- More specific CSS targetting for warnings.
 
 ## [0.11.0] - 2019-09-29
 ### Added
@@ -208,7 +214,8 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.0...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.1...HEAD
+[0.11.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.0...0.11.1
 [0.11.0]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.8...0.11.0
 [0.10.8]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.7...0.10.8
 [0.10.7]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.6...0.10.7
