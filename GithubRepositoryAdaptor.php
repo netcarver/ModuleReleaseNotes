@@ -46,6 +46,18 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
     }
 
 
+    public function SetRemote($remote) {
+        $m  = [];
+        $ok = preg_match('~^https?://github.com/([^/]++)/(.++)~i', $remote, $m);
+        if ($ok) {
+            $this->remote = $remote;
+            $this->owner  = $m[1];
+            $this->repo   = $m[2];
+            $this->encoded_owner = rawurlencode($m[1]);
+            $this->encoded_repo  = rawurlencode($m[2]);
+        }
+        return $ok;
+    }
 
     /**
      *
@@ -64,17 +76,15 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
         } else {
             throw new \Exception('Cache directory is needed.');
         }
-        $ok = preg_match('~^https?://github.com/([^/]++)/(.++)~i', $remote, $m);
+        $ok = $this->setRemote($remote);
         if ($ok) {
             $this->headers['Accept'] = 'application/vnd.github.v3+json'; // As requested by the github v3 api documentation.
             $this->headers['User-Agent'] = $application;
             $this->http   = $http;
-            $this->remote = $remote;
-            $this->owner  = $m[1];
-            $this->repo   = $m[2];
-            $this->encoded_owner = rawurlencode($m[1]);
-            $this->encoded_repo  = rawurlencode($m[2]);
-            $this->GetTags();
+            if (!array_key_exists('no_tags', $options) || false === $options['no_tags']) {
+                $this->GetTags();
+            }
+
         } else {
             throw new \Exception('Invalid repository signature');
         }
@@ -121,6 +131,22 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
         }
 
         return null;
+    }
+
+
+    /**
+     *
+     */
+    public function GetRepoInfo() {
+        if (null === $this->repo_info) {
+            $url       = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}";
+            $http_code = null;
+            $reply     = $this->RepositoryRead($url, $http_code);
+            if (200 == $http_code || 304 == $http_code) {
+                $this->repo_info = $reply['body'];
+            }
+        }
+        return $this->repo_info;
     }
 
 
@@ -226,6 +252,7 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
         $reply     = $this->RepositoryRead($url, $http_code, false);
         return $reply;
     }
+
 
 
 

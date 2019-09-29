@@ -7,4 +7,6 @@ interface GitRepositoryInterface {
     public function GetCommits($startref, $endref='HEAD');
     public function GetChangelog();
     public function GetForks($sort);
+    public function GetRepoInfo();
+    public function SetRemote($remote);
 }

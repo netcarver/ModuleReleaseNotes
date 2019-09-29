@@ -44,6 +44,15 @@ class BitbucketRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepo
     }
 
 
+    public function SetRemote($remote) {
+
+    }
+
+
+    public function GetRepoInfo() {
+        return [];
+    }
+
 
     /**
      *
