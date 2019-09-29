@@ -1,5 +1,9 @@
 # **Changelog** - [Keep a Changelog]
 
+## [0.11.0] - 2019-09-29
+### Added
+- SetRemote() and GetModuleInfo() methods.
+
 ## [0.10.8] - 2018-07-24
 - PHP5.4 Compat part 2 - Thanks @Toutouwai.
 
@@ -204,7 +208,8 @@
 
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [Keep a Changelog]:    http://keepachangelog.com/en/1.0.0/
-[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.8...HEAD
+[Upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.0...HEAD
+[0.11.0]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.8...0.11.0
 [0.10.8]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.7...0.10.8
 [0.10.7]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.6...0.10.7
 [0.10.6]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.10.5...0.10.6
