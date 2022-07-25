@@ -84,7 +84,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
 
 
     protected function getReadDepletionMessage($service_info) {
-        $time = strftime('%F %T', $service_info['reset']);
+        $time = date('Y-m-d H:i:s', $service_info['reset']);
         $message = sprintf(__('Out of reads at %s. A maximum of %s reads per hour is allowed.<br>Try again after %s.'), $service_info['name'], $service_info['limit'], $time);
         return "<div class='warning'>$message</span>";
     }
@@ -413,7 +413,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
             // Display remaining reads (Debug mode only and the client has read limits.)
             //
             if ($this->config->debug && $client_info['reset'] !== 0) {
-                $wrapper->notes = sprintf(__("%s API reads remaining: %s/%s. Resets at %s"), $client_info['name'], $client_info['remaining'], $client_info['limit'], strftime('%F %T', $client_info['reset']));
+                $wrapper->notes = sprintf(__("%s API reads remaining: %s/%s. Resets at %s"), $client_info['name'], $client_info['remaining'], $client_info['limit'], date('Y-m-d H:i:s', $client_info['reset']));
             }
 
             $return_info->children->insertAfter($wrapper, $children[0]);
