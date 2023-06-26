@@ -554,7 +554,7 @@ class ModuleReleaseNotes extends Process implements ConfigurableModule {
      */
     protected function changeH1toH2($content) {
         $regex = '^<h1([^>]*)>(.*)<\/h1>';
-        $content = preg_replace("~$regex~i", "<h2 class=was-h1>$2</h2>", $content, 1);
+        $content = preg_replace("~$regex~im", "<h2 class=was-h1>$2</h2>", $content, 1);
         return $content;
     }
 
