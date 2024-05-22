@@ -2,7 +2,7 @@
 
 [Keep a Changelog]
 
-## [0.11.4] - 2024-05-2024
+## [0.11.4] - 2024-05-22
 
 -   Fix: Update deprecated JQuery syntax
 
