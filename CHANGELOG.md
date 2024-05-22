@@ -2,6 +2,10 @@
 
 [Keep a Changelog]
 
+## [0.11.4] - 2024-05-2024
+
+-   Fix: Update deprecated JQuery syntax
+
 ## [0.11.3] - 2023-06-26
 
 -   Fix: changeH1ToH2() to demote non-first-line H1s
@@ -235,7 +239,8 @@
 
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [keep a changelog]: http://keepachangelog.com/en/1.0.0/
-[upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.1133...HEAD
+[upcoming]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.4...HEAD
+[0.11.4]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.3...0.11.4
 [0.11.3]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.2...0.11.3
 [0.11.2]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.1...0.11.2
 [0.11.1]: https://github.com/netcarver/ModuleReleaseNotes/compare/0.11.0...0.11.1
