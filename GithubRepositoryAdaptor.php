@@ -142,7 +142,7 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
             $url       = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}";
             $http_code = null;
             $reply     = $this->RepositoryRead($url, $http_code);
-            if (200 == $http_code || 304 == $http_code) {
+            if ((200 == $http_code || 304 == $http_code) && is_array($reply) && isset($reply['body'])) {
                 $this->repo_info = $reply['body'];
             }
         }
@@ -158,7 +158,7 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
             $url       = "https://api.github.com/repos/{$this->encoded_owner}/{$this->encoded_repo}/git/refs/tags";
             $http_code = null;
             $reply     = $this->RepositoryRead($url, $http_code);
-            if (200 == $http_code || 304 == $http_code) {
+            if ((200 == $http_code || 304 == $http_code) && is_array($reply)) {
                 $result = [];
                 $num = count($reply);
                 if ($num) {
@@ -216,7 +216,7 @@ class GithubRepositoryAdaptor extends GitRepositoryAdaptor implements GitReposit
 
         $http_code = null;
         $reply = $this->RepositoryRead($url, $http_code);
-        if(200 == $http_code || 304 == $http_code) {
+        if ((200 == $http_code || 304 == $http_code) && is_array($reply)) {
             if ($slice) {
                 $repo_url = null;
                 $commits  = array_slice($reply, 0, $slice);
