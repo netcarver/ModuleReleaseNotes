@@ -93,11 +93,18 @@ class GitRepositoryAdaptor {
             /**
              * Cache miss, but we now have the values from the headers and body that we can store in the cache.
              */
+            $reply = $new_reply;
+            if (null === $new_reply || false === $new_reply) {
+                /**
+                 * Body could not be read or decoded. Don't cache it, otherwise its etag would
+                 * lead to 304 replies with nothing in the cache to serve.
+                 */
+                break;
+            }
             $entry['etag']     = @$response_headers['etag'];
             $entry['last_mod'] = @$response_headers['Last-Modified'];
             $entry['reply']    = $new_reply;
             $this->cache->setEntryForKey($key, $entry);
-            $reply = $new_reply;
             break;
 
         case 301:
@@ -118,7 +125,16 @@ class GitRepositoryAdaptor {
         case 304:
             /**
              * Cache hit! File contents are already in the cache!
+             *
+             * Unless the cached entry has an etag but no reply (e.g. written by an older version
+             * from an undecodable 200 response). In that case, discard the entry and fetch
+             * again without conditional headers. The cleared entry has no etag, so this
+             * cannot recurse more than once.
              */
+            if (null === $reply && !empty($entry)) {
+                $this->cache->setEntryForKey($key, null);
+                return $this->RepositoryRead($url, $http_code, $json);
+            }
             break;
 
         case 403:

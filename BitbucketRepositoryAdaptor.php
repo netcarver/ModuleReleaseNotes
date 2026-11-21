@@ -93,7 +93,7 @@ class BitbucketRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepo
             $url       = "https://api.bitbucket.org/2.0/repositories/{$this->encoded_owner}/{$this->encoded_repo}/refs/tags";
             $http_code = null;
             $reply     = $this->RepositoryRead($url, $http_code);
-            if (200 == $http_code || 304 == $http_code) {
+            if ((200 == $http_code || 304 == $http_code) && is_array($reply) && isset($reply['values'])) {
                 $result = [];
                 $num = count($reply['values']);
                 if ($num) {
@@ -151,7 +151,7 @@ class BitbucketRepositoryAdaptor extends GitRepositoryAdaptor implements GitRepo
 
         $http_code = null;
         $reply     = $this->RepositoryRead($url, $http_code);
-        if (200 == $http_code || 304 == $http_code) {
+        if ((200 == $http_code || 304 == $http_code) && is_array($reply) && isset($reply['values'])) {
             if ($slice) {
                 $repo_url = null;
                 $commits  = array_slice($reply['values'], 0, $slice);
